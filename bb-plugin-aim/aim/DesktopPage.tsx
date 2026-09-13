@@ -64,7 +64,7 @@ interface ContextMenuState {
  * HTTP route.
  */
 export function DesktopPage() {
-  const { status, threads } = experimental_useSidebarThreads();
+  const { status, threads, projects } = experimental_useSidebarThreads();
   const actions = experimental_useSidebarThreadActions();
   const rpc = useRpc<typeof rpcContract>();
 
@@ -291,6 +291,24 @@ export function DesktopPage() {
     [actions],
   );
 
+  // New-thread creation always routes through bb's host composer
+  // (actions.openNewThread) — there is no plugin-side silent create.
+  // Scope the new thread to the project the AIM panel is showing: prefer the
+  // projectId of the first thread (concrete, real), else bb's personal
+  // project, else leave it unspecified so bb applies its own default.
+  const newThreadProjectId = useMemo(
+    () =>
+      threads.length > 0 && threads[0].projectId
+        ? threads[0].projectId
+        : projects.find((p) => p.isPersonal)?.id,
+    [threads, projects],
+  );
+
+  const onNewThread = useCallback(
+    () => actions.openNewThread({ projectId: newThreadProjectId }),
+    [actions, newThreadProjectId],
+  );
+
   const onBuddyClick = useCallback(
     (threadId: string) => {
       setWindows((prev) => {
@@ -468,6 +486,7 @@ export function DesktopPage() {
         onDismiss={() => setBuddyVisible(false)}
         onMove={(x, y) => setBuddyPos({ x, y })}
         onBuddyClick={onBuddyClick}
+        onNewThread={onNewThread}
       />
 
       {Object.entries(windows)

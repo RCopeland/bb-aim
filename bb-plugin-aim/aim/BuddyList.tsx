@@ -12,6 +12,7 @@ export interface BuddyListProps {
   onDismiss: () => void;
   onMove: (x: number, y: number) => void;
   onBuddyClick: (threadId: string) => void;
+  onNewThread: () => void;
 }
 
 /**
@@ -56,6 +57,7 @@ export function BuddyList({
   onDismiss,
   onMove,
   onBuddyClick,
+  onNewThread,
 }: BuddyListProps) {
   const drag = useAimDrag(bounds, onMove);
 
@@ -178,6 +180,15 @@ export function BuddyList({
       <div className="window-body aim-buddy-body">
         <div className="aim-buddy-toolbar">
           <span>Threads</span>
+          <button
+            type="button"
+            className="aim-buddy-new"
+            aria-label="New thread"
+            title="New thread"
+            onClick={onNewThread}
+          >
+            New Thread
+          </button>
           <span className="aim-buddy-count">{count}</span>
         </div>
 

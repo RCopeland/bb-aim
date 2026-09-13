@@ -163,6 +163,38 @@
 .aim-xp .aim-buddy-count {
   font-weight: 700;
 }
+/* "New Thread" action button in the buddy toolbar. Win98 silver bevel but
+   tinted AIM gold (matching the composer buttons) so it reads as an AIM
+   action, not plain host chrome. flex-shrink:0 + min-width:max-content keeps
+   its label intact and prevents it from creeping over the online count. */
+.aim-xp .aim-buddy-new {
+  flex-shrink: 0;
+  min-width: max-content;
+  min-height: 0;
+  height: auto;
+  padding: 0 8px;
+  border: none;
+  border-radius: 0;
+  background: #f0e6b8;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  color: #000;
+  text-shadow: none;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.aim-xp .aim-buddy-new:hover,
+.aim-xp .aim-buddy-new:focus-visible {
+  background: #e6db96;
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+.aim-xp .aim-buddy-new:active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  padding-top: 1px;
+  padding-left: 9px;
+}
 .aim-xp .aim-buddy-list {
   overflow-y: auto;
   max-height: 40vh;
