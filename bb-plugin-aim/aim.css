@@ -1,0 +1,795 @@
+/* bb-aim — AIM chrome that sits ON TOP of 98.css (Windows 98 base).
+   98.css (aim/WIN98_scoped.css) supplies the Win98 window/titlebar/menu/status-
+   bar/button chrome, scoped under `.aim-xp`. This file adds the AIM desktop
+   behavior and layout: wallpaper layers, absolute-positioned floating buddy/IM
+   windows (with drag + bottom-corner resize), transcript bubbles, composer,
+   desktop icons, the right-click wallpaper menu, and the AIM 3.0 palette layer
+   (teal-slate chrome, silver body, gold accents) that makes it read as AOL
+   Instant Messenger rather than plain Windows.
+
+   Every selector lives under `.aim-xp` so none of it can leak into the host
+   app (consistent with the scoping of WIN98_scoped.css). */
+
+/* ----- Desktop root ----- */
+.aim-xp.aim-root {
+  /* Palette+tints AIM uses beyond the XP chrome. */
+  --aim-blue-deep: #2f5f92;
+  --aim-muted: #5c6b7d;
+  --aim-line: #9cb8dd;
+  --aim-line-soft: #c9dcf2;
+  /* The desktop fills the navPanel body (definite height from the host
+     panel); floating AIM elements position absolutely inside it. XP.css only
+     themes `.window` and friends — it does not restyle the page background. */
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  font-family: "Pixelated MS Sans Serif", Tahoma, "Segoe UI", Arial, sans-serif;
+  color: #000;
+  user-select: none;
+}
+.aim-xp * {
+  box-sizing: border-box;
+}
+.aim-xp .aim-interactive {
+  pointer-events: auto;
+}
+
+/* ----- Desktop wallpaper layers -----
+   Default: an original classic-Windows-style backdrop (blue sky, soft sun,
+   rolling green hills, foreground lawn) built purely from CSS gradients — no
+   bundled bitmap. A custom image is served from the plugin HTTP route. */
+.aim-xp .aim-wp {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.aim-xp .aim-wp-default {
+  background:
+    /* sun glow over the sky */
+    radial-gradient(circle at 76% 14%, rgba(255, 250, 210, 0.9) 0%, rgba(255, 250, 210, 0) 22%),
+    /* bright sky */
+    linear-gradient(180deg, #63b1ff 0%, #7ec0ff 30%, #a5d6ff 52%, #cfe9f7 64%),
+    /* far blue-green hill */
+    radial-gradient(120% 90% at 50% 112%, #2b7f5a 0%, #2f8a60 26%, #bfe8c8 30%, rgba(191,232,200,0) 34%),
+    /* near green hill */
+    radial-gradient(130% 85% at 38% 130%, #3f9b66 0%, #57b278 40%, #9ad8a8 52%, rgba(154,216,168,0) 56%),
+    /* foreground lawn */
+    linear-gradient(180deg, rgba(114, 190, 138, 0) 78%, #3f9b66 84%, #2c7a4f 100%);
+}
+.aim-xp .aim-wp-custom {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/* Soft overlay so buddy/window contrast survives hot/custom wallpapers. */
+.aim-xp .aim-wp-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(120% 100% at 50% 30%, rgba(12, 22, 36, 0) 40%, rgba(12, 22, 36, 0.28) 100%);
+}
+
+/* ----- Floating windows sit above the wallpaper -----
+   XP.css themes `.window` chrome; here we keep the AIM absolute-positioning,
+   size and flex-column layout that the drag/resize hooks rely on. */
+.aim-xp .aim-win,
+.aim-xp .aim-buddy {
+  position: absolute;
+  z-index: 1;
+  pointer-events: auto;
+}
+.aim-xp .aim-win {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.aim-xp .aim-buddy {
+  display: flex;
+  flex-direction: column;
+  width: 216px;
+  overflow: hidden;
+}
+
+/* The title bar is the drag handle for both window types. */
+.aim-xp .aim-win .title-bar,
+.aim-xp .aim-buddy .title-bar {
+  cursor: grab;
+  flex-shrink: 0;
+}
+.aim-xp .aim-win .title-bar:active,
+.aim-xp .aim-buddy .title-bar:active {
+  cursor: grabbing;
+}
+
+/* Long thread names must truncate with an ellipsis instead of wrapping onto a
+   second line (and shoving the close/minimize controls around). The title bar
+   is already a flex row; let the text flex-shrink and clip. */
+.aim-xp .aim-win .title-bar-text,
+.aim-xp .aim-buddy .title-bar-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* XP.css pads `.window-body` with an 8px margin; the AIM windows manage their
+   own inner gutters, so collapse it and let our flex layout take over. */
+.aim-xp .aim-win .window-body,
+.aim-xp .aim-buddy .window-body {
+  margin: 0;
+}
+.aim-xp .aim-win .window-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.aim-xp .aim-buddy .window-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ----- Presence bullets ----- */
+.aim-xp .aim-pp {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.aim-xp .aim-pp-online   { background: radial-gradient(circle at 35% 30%, #8fe08f, #2f9c2f); }
+.aim-xp .aim-pp-away     { background: radial-gradient(circle at 35% 30%, #ffe185, #d9a400); }
+.aim-xp .aim-pp-idle     { background: radial-gradient(circle at 35% 30%, #ffb39a, #c96a3a); }
+.aim-xp .aim-pp-offline  { background: radial-gradient(circle at 35% 30%, #cfd6de, #8b95a3); }
+.aim-xp .aim-pp-attention {
+  background: radial-gradient(circle at 35% 30%, #9fc7ff, #1d6fd0);
+  animation: aim-pulse 0.9s ease-in-out infinite;
+}
+
+/* ----- Buddy list window body ----- */
+.aim-xp .aim-buddy-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid #d0cdbc;
+  background: #fffbe4;
+  font-size: 11px;
+}
+.aim-xp .aim-buddy-count {
+  font-weight: 700;
+}
+.aim-xp .aim-buddy-list {
+  overflow-y: auto;
+  max-height: 40vh;
+  margin: 0;
+  padding: 2px;
+}
+/* Buddy rows are <button>s inside tree-view <li>s; neutralize XP's 3D button
+   chrome (XP buttons are min-width:75px beveled) so each row is a list item. */
+.aim-xp .aim-buddy-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: auto;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+}
+.aim-xp .aim-buddy-row:hover { background: #dbe9f8; }
+.aim-xp .aim-buddy-row:active { box-shadow: none; }
+.aim-xp .aim-buddy-row.aim-select { background: #cfe1f5; outline: 1px solid var(--aim-line); }
+.aim-xp .aim-buddy-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #093040;
+}
+/* Recursive buddy-tree disclosure caret (parent rows only).
+   A right-pointing triangle when collapsed, down when expanded — drawn with a
+   CSS border triangle so there is no glyph/font dependency and it scales
+   crisply. The caret span is `aria-hidden`; the parent row button carries the
+   real state via `aria-expanded` + `aria-controls`. Scoped under .aim-xp. */
+.aim-xp .aim-buddy-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.aim-xp .aim-buddy-row.aim-buddy-parent .aim-buddy-caret::after {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 6px solid var(--aim-muted);
+}
+.aim-xp .aim-buddy-row.aim-buddy-parent[aria-expanded="true"] .aim-buddy-caret::after {
+  border: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 6px solid var(--aim-muted);
+}
+/* Children nest inside the parent <li>; XP.css's `.aim-xp ul.tree-view ul`
+   already supplies the dotted-left + 16px indent + connector elbows, so the
+   nested `.aim-buddy-children` <ul> needs no extra chrome here. */
+.aim-xp .aim-buddy-children {
+  margin-top: 0;
+}
+.aim-xp .aim-buddy-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.aim-xp .status-bar {
+  font-size: 11px;
+}
+.aim-xp .status-bar-field {
+  color: #222;
+}
+.aim-xp .status-bar-spacer { flex-grow: 1; }
+
+/* ----- Wallpaper status toast (above the taskbar) -----
+   Bottom-left toast showing feedback like "Wallpaper updated." Sits just
+   above the .aim-taskbar so the change never hides behind it. */
+.aim-xp .aim-wallpaper-status {
+  position: absolute;
+  left: 10px;
+  bottom: 40px;
+  z-index: 2147483000;
+  max-width: calc(100% - 20px);
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(12, 26, 46, 0.65);
+  backdrop-filter: blur(2px);
+  border-radius: 3px;
+  font-family: "Pixelated MS Sans Serif", Tahoma, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cfe9ff;
+}
+
+/* ----- IM window ----- */
+.aim-xp .aim-win.aim-flash {
+  animation: aim-attn 0.5s ease-in-out 3;
+}
+@keyframes aim-attn {
+  0%, 100% { box-shadow: 3px 6px 20px rgba(20, 40, 70, 0.4); transform: translateY(0); }
+  50% {
+    box-shadow: 0 0 0 3px rgba(29, 111, 208, 0.7), 3px 6px 22px rgba(29, 111, 208, 0.55);
+    transform: translateY(-3px);
+  }
+}
+@keyframes aim-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.25); }
+}
+/* Respect reduced-motion: drop the emphasis nudge/glow and bullet pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .aim-xp .aim-win.aim-flash { animation: none; }
+  .aim-xp .aim-pp-attention { animation: none; }
+}
+
+/* Thin presence/provider strip under the XP title bar. */
+.aim-xp .aim-win-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-bottom: 1px solid #d0cdbc;
+  background: #fffbe4;
+  font-size: 11px;
+  color: #222;
+}
+.aim-xp .aim-status-chip {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border: 1px solid #b3ab8e;
+  background: #ece9d8;
+  color: #333;
+}
+
+/* Transcript — a sunken XP-style read area (white well). */
+.aim-xp .aim-win-transcript {
+  flex: 1 1 auto;
+  min-height: 32px;
+  overflow-y: auto;
+  padding: 8px 9px;
+  background: #fff;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #d5d0c9;
+  font-size: 12px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+/* Off-screen polite live region (sr-only) announcing new transcript rows. */
+.aim-xp .aim-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aim-xp .aim-msg-loading,
+.aim-xp .aim-msg-error,
+.aim-xp .aim-msg-empty {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.aim-xp .aim-msg-error { color: #8b1e1e; }
+
+/* Message bubbles. */
+.aim-xp .aim-tx {
+  display: flex;
+  flex-direction: column;
+  max-width: 96%;
+}
+.aim-xp .aim-tx.aim-user { align-self: flex-end; }
+.aim-xp .aim-tx.aim-assistant { align-self: flex-start; }
+.aim-xp .aim-tx-name {
+  font-size: 10px;
+  margin-bottom: 1px;
+  color: #555;
+}
+.aim-xp .aim-tx-name-agent { color: #1d5a9e; }
+
+/* Agent thinking — the reasoning bb shows in its own thread window, rendered
+   here as an always-collapsible block above the reply. Matches the muted,
+   italic look of bb's thinking rows. */
+.aim-xp .aim-tx-thinking {
+  max-width: 100%;
+  margin: 0 0 4px;
+  border: 1px dotted #b9c1cc;
+  border-radius: 4px;
+  background: #eef2f7;
+  color: #4a5666;
+}
+.aim-xp .aim-tx-thinking-label {
+  cursor: pointer;
+  font-size: 11px;
+  font-style: italic;
+  color: #4a5666;
+  padding: 4px 8px;
+  user-select: none;
+}
+.aim-xp .aim-tx-thinking-label::-webkit-details-marker { color: #4a5666; }
+.aim-xp .aim-tx-thinking[open] .aim-tx-thinking-block {
+  border-top: 1px dotted #b9c1cc;
+}
+.aim-xp .aim-tx-thinking-block {
+  padding: 6px 8px 8px;
+}
+.aim-xp .aim-tx-thinking-text {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.aim-xp .aim-tx-thinking-text > *:first-child { margin-top: 0; }
+.aim-xp .aim-tx-thinking-text > *:last-child { margin-bottom: 0; }
+.aim-xp .aim-tx-thinking-text p { margin: 0 0 6px; }
+.aim-xp .aim-tx-thinking-text p:last-child { margin-bottom: 0; }
+.aim-xp .aim-tx-thinking-text pre,
+.aim-xp .aim-tx-thinking-text code {
+  font-style: normal;
+}
+
+.aim-xp .aim-tx-text {
+  white-space: normal;
+  word-break: break-word;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid #c8cdd4;
+  border-radius: 4px;
+  background: #f4f8fc;
+  color: #14273d;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+/* Markdown shaping inside the small AIM bubble. */
+.aim-xp .aim-tx-text > *:first-child { margin-top: 0; }
+.aim-xp .aim-tx-text > *:last-child { margin-bottom: 0; }
+.aim-xp .aim-tx-text p { margin: 0 0 6px; }
+.aim-xp .aim-tx-text p:last-child { margin-bottom: 0; }
+.aim-xp .aim-tx-text h1,
+.aim-xp .aim-tx-text h2,
+.aim-xp .aim-tx-text h3,
+.aim-xp .aim-tx-text h4,
+.aim-xp .aim-tx-text h5,
+.aim-xp .aim-tx-text h6 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  line-height: 1.3;
+  color: var(--aim-blue-deep);
+}
+.aim-xp .aim-tx-text ul,
+.aim-xp .aim-tx-text ol { margin: 0 0 6px; padding-left: 18px; }
+.aim-xp .aim-tx-text li { margin: 0 0 2px; }
+.aim-xp .aim-tx-text pre {
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-x: auto;
+  margin: 0 0 6px;
+  padding: 6px;
+  border-radius: 4px;
+  background: #eef2f7;
+  border: 1px solid var(--aim-line-soft);
+}
+.aim-xp .aim-tx-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+.aim-xp .aim-tx-text pre code { background: none; padding: 0; }
+.aim-xp .aim-tx-text blockquote {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  border-left: 3px solid var(--aim-line);
+  color: #45525f;
+}
+.aim-xp .aim-tx-text a { color: #1d6fd0; text-decoration: underline; }
+.aim-xp .aim-tx-text img { max-width: 100%; height: auto; border-radius: 4px; }
+.aim-xp .aim-tx-text table { border-collapse: collapse; margin: 0 0 6px; }
+.aim-xp .aim-tx-text th,
+.aim-xp .aim-tx-text td { border: 1px solid #c8cdd4; padding: 3px 6px; }
+.aim-xp .aim-tx-text hr { border: none; border-top: 1px solid #c8cdd4; margin: 6px 0; }
+.aim-xp .aim-user .aim-tx-text {
+  align-self: flex-end;
+  background: #dcedff;
+  border-color: #bfe0ff;
+  border-bottom-right-radius: 2px;
+}
+.aim-xp .aim-assistant .aim-tx-text {
+  border-bottom-left-radius: 2px;
+}
+.aim-xp .aim-tx-truncated {
+  font-size: 10px;
+  color: #7a8796;
+  text-align: center;
+}
+
+/* Composer. */
+.aim-xp .aim-win-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 9px 9px;
+  background: #ece9d8;
+  border-top: 1px solid #fff;
+}
+.aim-xp .aim-composer-input {
+  width: 100%;
+  resize: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 5px 6px;
+  /* XP sunken textbox: white well with inset bevel. */
+  border: none;
+  background: #fff;
+  color: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #d5d0c9, inset 2px 2px #808080;
+}
+.aim-xp .aim-composer-input:focus {
+  outline: 1px dotted #000;
+  outline-offset: -2px;
+}
+.aim-xp .aim-composer-input:disabled { background: #eef1f5; color: #99a4b1; }
+.aim-xp .aim-composer-error {
+  font-size: 11px;
+  color: #8b1e1e;
+}
+.aim-xp .aim-composer-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+/* XP.css themes bare `button`; these adjust min-width so our small composer
+   buttons (Send / Open thread) don't balloon to the Win98 default 75px. */
+.aim-xp .aim-composer-row button {
+  min-width: 0;
+}
+.aim-xp button[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* ----- Windows 98-style taskbar -----
+   Fixed at the bottom of the desktop. Houses the Start button and, in a
+   classic Win98 layout, provides the anchor point for the Start menu popup. */
+.aim-xp .aim-taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30px;
+  z-index: 2147483900;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  background: #c0c0c0;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #0a0a0a, inset 2px 2px #dfdfdf, inset -2px -2px grey;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  user-select: none;
+}
+.aim-xp .aim-taskbar-spacer { flex: 1 1 auto; }
+
+/* Win98 raised button for the Start button. */
+.aim-xp .aim-start-btn {
+  min-width: 0;
+  height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #c0c0c0;
+  border: none;
+  border-radius: 0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  color: #000;
+  text-shadow: none;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.aim-xp .aim-start-btn:active,
+.aim-xp .aim-start-btn[aria-expanded="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  padding-top: 1px;
+  padding-left: 11px;
+}
+/* Small colored logo next to "Start" — teal triangle echoing the AIM palette. */
+.aim-xp .aim-start-logo {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 11px solid #173d3a;
+}
+
+/* ----- Win98 Start menu popup -----
+   Opens upward from the Start button, left-aligned at the bottom of the
+   desktop. Vertical "AIM" brand strip on the left; menu items on the right. */
+.aim-xp .aim-start-menu {
+  position: absolute;
+  left: 4px;
+  bottom: 34px;
+  z-index: 2147483950;
+  display: flex;
+  min-width: 180px;
+  padding: 2px;
+  border: 1px solid #0a0a0a;
+  background: #c0c0c0;
+  box-shadow: inset 2px 2px #fff, inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+}
+/* Vertical brand strip (left side, like the Win98 product-name band). */
+.aim-xp .aim-start-brand {
+  width: 22px;
+  padding: 8px 4px;
+  background: linear-gradient(180deg, #173d3a 0%, #3f5f5c 50%, #7ba2a0 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.aim-xp .aim-start-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 1px;
+}
+
+/* Reuse .aim-menu-item for the Start menu items; override background-color
+   inherited from .aim-menu to sit on the Win98 silver base. */
+.aim-xp .aim-start-menu .aim-menu-item {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Start-menu folders (Applications / Settings): label + right-pointing arrow.
+   Selecting one opens a flyout panel to the right of the Start menu. */
+.aim-xp .aim-start-menu .aim-menu-item.aim-start-folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.aim-xp .aim-start-arrow {
+  font-size: 10px;
+  line-height: 1;
+}
+.aim-xp .aim-start-flyout {
+  position: absolute;
+  left: 100%;
+  top: -3px;
+  z-index: 1;
+  min-width: 190px;
+  padding: 3px;
+  border: 1px solid #0a0a0a;
+  background: #c0c0c0;
+  box-shadow: inset 2px 2px #fff, inset -1px -1px #0a0a0a, inset 1px 1px #fff,
+    inset -2px -2px grey;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+}
+
+/* Application launcher row: small icon + label. */
+.aim-xp .aim-start-menu .aim-menu-item.aim-app-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.aim-xp .aim-app-item svg {
+  flex-shrink: 0;
+}
+
+
+/* ----- Hidden file input (triggered by the button / menu item). ----- */
+.aim-xp .aim-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  pointer-events: none;
+}
+
+/* ----- Right-click desktop context menu (XP-style popup) -----
+   XP.css ships a tab-bar `menu[role=tablist]` but no dropdown menu, so this
+   popup is restyled here to match the XP beige + blue highlight look. */
+.aim-xp .aim-menu {
+  position: absolute;
+  z-index: 2147484000;
+  min-width: 180px;
+  padding: 3px;
+  border: 1px solid #0a0a0a;
+  background: #ece9d8;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff;
+}
+.aim-xp .aim-menu-item {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: "Pixelated MS Sans Serif", Tahoma, sans-serif;
+  font-size: 12px;
+  color: #000;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.aim-xp .aim-menu-item:hover,
+.aim-xp .aim-menu-item:focus-visible {
+  background: #1d6fd0;
+  color: #fff;
+  outline: none;
+}
+.aim-xp .aim-menu-item:active { box-shadow: none; }
+
+/* ----- Invisible bottom-corner resize grips ----- */
+.aim-xp .aim-win-resize {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 8;
+  pointer-events: auto;
+  touch-action: none;
+}
+.aim-xp .aim-win-resize.aim-se { right: 0; bottom: 0; cursor: nwse-resize; }
+.aim-xp .aim-win-resize.aim-sw { left: 0; bottom: 0; cursor: nesw-resize; }
+
+/* ============================================================================
+   AIM 3.0 (1999) PALETTE LAYER
+   Re-skins the 98.css Win98 base with the colors of the real AIM 3.0 buddy
+   list / IM windows from the Aug-1999 screenshot: teal-slate chrome, silver
+   list body, near-white beveled buttons, and muted gold Running-Man accents.
+   Kept trailing so it cleanly overrides the vendored base. All scoped under
+   .aim-xp. */
+
+/* Title bars: AIM 3.0 used a teal-slate track, not the Win98 navy/blue. */
+.aim-xp .title-bar {
+  background: linear-gradient(90deg, #3f5f5c 0%, #7ba2a0 38%, #aac7c3 100%);
+}
+.aim-xp .title-bar.inactive {
+  background: linear-gradient(90deg, #748a88 0%, #a8b6b4 100%);
+}
+.aim-xp .title-bar-text {
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Buddy-list toolbar + IM meta strip: teal-tinged beige (AIM's pale gold
+   header bands) instead of the generic Win98 gray. */
+.aim-xp .aim-buddy-toolbar {
+  background: linear-gradient(180deg, #dce8e4 0%, #c7d8d2 100%);
+  border-bottom-color: #9fb4ae;
+  color: #173d3a;
+}
+.aim-xp .aim-win-meta {
+  background: linear-gradient(180deg, #dce8e4 0%, #c7d8d2 100%);
+  border-bottom-color: #9fb4ae;
+  color: #173d3a;
+}
+.aim-xp .aim-status-chip {
+  border-color: #8aa39d;
+  background: #e4ece9;
+  color: #173d3a;
+}
+
+/* Buddy presence gold: keep the ISO warning-yellow as the signature AIM tone. */
+.aim-xp .aim-buddy-row.aim-select {
+  background: #f7e9b4;
+  outline-color: #c8a22b;
+}
+.aim-xp .aim-buddy-row:hover { background: #e3e2c7; }
+
+/* Status bar: AIM-teal field tint. */
+.aim-xp .status-bar-field {
+  background: #eef2f0;
+  color: #1c3d3a;
+}
+
+/* Composer gutter: pale gold, echoing AIM's signature beige. */
+.aim-xp .aim-win-composer {
+  background: #e8e4cf;
+  border-top-color: #fff8e0;
+}
+
+/* Beveled buttons surfaced on the palette: keep the Win98 silver bevel but tint
+   the Send/Open composer actions gold-ish, like AIM's button bar. */
+.aim-xp .aim-composer-row button {
+  background: #f0e6b8;
+  border: 1px solid #b7a15a;
+  box-shadow: none;
+  color: #222;
+  text-shadow: none;
+}
+.aim-xp .aim-composer-row button:active {
+  background: #d8c88f;
+}
+.aim-xp .aim-composer-row button:hover { text-shadow: none; }
