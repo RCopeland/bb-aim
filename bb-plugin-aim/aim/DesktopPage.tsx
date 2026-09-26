@@ -14,7 +14,7 @@ import {
   useRpc,
 } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "../server";
-import { isWaitingForInput } from "./types";
+import { needsAttention } from "./types";
 import { BuddyList } from "./BuddyList";
 import {
   DEFAULT_H,
@@ -28,6 +28,7 @@ import type { ResizeTarget } from "./useAimResize";
 const OVERLAY_BASE_Z = 2_147_480_000;
 const FLASH_MS = 1500;
 const BUDDY_WIDTH = 216;
+const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // match server cap
 
 /** Build a fresh IM window entry for a thread. */
@@ -80,7 +81,9 @@ export function DesktopPage() {
       const rect = node.getBoundingClientRect();
       setSize({
         width: Math.max(320, Math.round(rect.width)),
-        height: Math.max(240, Math.round(rect.height)),
+        // Reserve the taskbar strip at the bottom so dragged/resized IM
+        // windows can never slip underneath it and become unreachable.
+        height: Math.max(240, Math.round(rect.height) - TASKBAR_H),
       });
     };
     update();
@@ -392,7 +395,7 @@ export function DesktopPage() {
     if (status !== "ready") return;
     const prior = prevAttention.current;
     const nowMap = new Map<string, boolean>();
-    for (const t of threads) nowMap.set(t.id, isWaitingForInput(t));
+    for (const t of threads) nowMap.set(t.id, needsAttention(t));
 
     const newlyNeed: string[] = [];
     for (const [id, needs] of nowMap) {
@@ -442,6 +445,19 @@ export function DesktopPage() {
     [windows],
   );
 
+  // The window currently on top among VISIBLE windows — the one the taskbar
+  // should mark as focused and the one a taskbar click should hide (classic
+  // toggle). Derived from state, not from the z counter ref, so it is
+  // recomputed whenever a window is shown, hidden or raised.
+  const focusedThreadId = useMemo(() => {
+    let best: { id: string; z: number } | null = null;
+    for (const [id, w] of Object.entries(windows)) {
+      if (!w.visible) continue;
+      if (best === null || w.z > best.z) best = { id, z: w.z };
+    }
+    return best?.id ?? null;
+  }, [windows]);
+
   const effectiveBuddyPos = useMemo(() => {
     const x = Math.min(Math.max(0, buddyPos.x), Math.max(0, size.width - BUDDY_WIDTH - 12));
     const y = Math.min(Math.max(0, buddyPos.y), Math.max(0, size.height - 360));
@@ -479,6 +495,7 @@ export function DesktopPage() {
 
       <BuddyList
         threads={threads}
+        projects={projects}
         openThreadIds={openThreadIds}
         visible={buddyVisible}
         position={effectiveBuddyPos}
@@ -499,7 +516,7 @@ export function DesktopPage() {
               key={threadId}
               window={w}
               thread={thread}
-              active={w.z === zCounter.current}
+              active={threadId === focusedThreadId}
               bounds={boundsRef}
               onFocus={() => onFocusWindow(threadId)}
               onMove={onMoveWindow(threadId)}
@@ -540,6 +557,77 @@ export function DesktopPage() {
           </span>
           Start
         </button>
+
+        {/* Taskbar window buttons. This is the always-visible surface for
+            every thread that has an IM window: a hidden window can be recalled
+            from here without opening the buddy list, and a thread that needs
+            the user is flagged in place (so the pop-up flow is visible even
+            when the window itself is minimized). */}
+        <div className="aim-taskbar-windows" role="group" aria-label="Open IM windows">
+          {Object.entries(windows).map(([threadId, w]) => {
+            const thread = threads.find((t) => t.id === threadId);
+            if (!thread) return null;
+            const needs = needsAttention(thread);
+            const title = thread.title ?? thread.titleFallback ?? "Untitled";
+            return (
+              <button
+                key={threadId}
+                type="button"
+                className={`aim-task-btn${w.visible ? " aim-task-btn-open" : ""}${
+                  needs ? " aim-task-btn-needs" : ""
+                }`}
+                aria-pressed={w.visible}
+                aria-label={`${title}${needs ? ", needs your input" : ""}${
+                  w.visible ? "" : ", hidden"
+                }`}
+                title={
+                  w.visible
+                    ? needs
+                      ? `${title} — needs your input (click to hide)`
+                      : `${title} (click to focus / hide)`
+                    : needs
+                      ? `${title} — needs your input (click to show)`
+                      : `${title} — hidden (click to show)`
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // Clicking the button for the window that is already on top
+                  // hides it (classic taskbar toggle); clicking any other
+                  // shows AND focuses it.
+                  const isFocused = focusedThreadId === threadId;
+                  if (isFocused) {
+                    setWindows((prev) =>
+                      prev[threadId]
+                        ? { ...prev, [threadId]: { ...prev[threadId], visible: false } }
+                        : prev,
+                    );
+                  } else {
+                    setWindows((prev) =>
+                      prev[threadId]
+                        ? {
+                            ...prev,
+                            [threadId]: {
+                              ...prev[threadId],
+                              visible: true,
+                              flash: false,
+                              z: nextZ(),
+                            },
+                          }
+                        : prev,
+                    );
+                  }
+                }}
+              >
+                {needs ? (
+                  <span className="aim-task-needs" aria-hidden="true">
+                    !
+                  </span>
+                ) : null}
+                <span className="aim-task-label">{title}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="aim-taskbar-spacer" />
       </div>
 
