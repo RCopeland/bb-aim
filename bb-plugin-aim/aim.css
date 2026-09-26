@@ -230,6 +230,168 @@
   white-space: nowrap;
   color: #093040;
 }
+
+/* ----- Row detail: parity with bb's default sidebar row -----
+   Rows are two-to-three lines now (name / detail / sub) so the buddy list
+   carries the branch, host, project, provider, running activity, fork origin,
+   PR state and last-activity time that bb's own list shows. */
+.aim-xp .aim-buddy-li { list-style: none; }
+.aim-xp .aim-buddy-rowwrap {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border-radius: 2px;
+}
+.aim-xp .aim-buddy-rowwrap:hover { background: #dbe9f8; }
+/* The disclosure caret is its own button so a click means exactly one thing. */
+.aim-xp .aim-buddy-caret-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 15px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.aim-xp .aim-buddy-caret-btn:hover,
+.aim-xp .aim-buddy-caret-btn:focus-visible { background: #cfe1f5; }
+.aim-xp .aim-buddy-rowwrap:hover .aim-buddy-row { background: transparent; }
+.aim-xp .aim-buddy-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.aim-xp .aim-buddy-name.aim-buddy-unread {
+  font-weight: 700;
+  color: #05202c;
+}
+.aim-xp .aim-buddy-detail,
+.aim-xp .aim-buddy-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #55606e;
+  white-space: nowrap;
+}
+.aim-xp .aim-buddy-detail > *,
+.aim-xp .aim-buddy-sub > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aim-xp .aim-buddy-branch {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  color: #1d5a9e;
+  max-width: 120px;
+}
+.aim-xp .aim-buddy-tag {
+  padding: 0 4px;
+  border: 1px solid #b9c1cc;
+  border-radius: 2px;
+  background: #eef2f7;
+  color: #4a5666;
+  flex: 0 0 auto;
+}
+.aim-xp .aim-buddy-tag.aim-buddy-busy {
+  border-color: #c9a227;
+  background: #fdf3cf;
+  color: #6b5310;
+}
+.aim-xp .aim-buddy-flag { color: #c9a227; flex: 0 0 auto; }
+.aim-xp .aim-buddy-project { color: #55606e; }
+.aim-xp .aim-buddy-host { color: #7a8796; }
+.aim-xp .aim-buddy-time { margin-left: auto; color: #7a8796; flex: 0 0 auto; }
+/* PR chip: quiet unless the PR actually wants the user. */
+.aim-xp .aim-buddy-pr {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 0 4px;
+  border: 1px solid #b9c1cc;
+  border-radius: 2px;
+  background: #eef2f7;
+  color: #4a5666;
+  font-size: 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aim-xp .aim-buddy-pr.aim-buddy-pr-attention {
+  border-color: #c9a227;
+  background: #fdf3cf;
+  color: #6b5310;
+  font-weight: 700;
+}
+/* The "needs you" marker and split indicator at the row's trailing edge. */
+.aim-xp .aim-buddy-needs {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+  text-align: center;
+  border-radius: 50%;
+  background: #c1272d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.aim-xp .aim-buddy-split {
+  flex: 0 0 auto;
+  align-self: center;
+  color: #1d5a9e;
+  font-size: 11px;
+}
+/* Per-row actions: revealed on hover/focus so the row stays quiet at rest. */
+.aim-xp .aim-buddy-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+  opacity: 0;
+}
+.aim-xp .aim-buddy-rowwrap:hover .aim-buddy-actions,
+.aim-xp .aim-buddy-rowwrap:focus-within .aim-buddy-actions {
+  opacity: 1;
+}
+.aim-xp .aim-buddy-act {
+  min-width: 0;
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  color: #4a5666;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.aim-xp .aim-buddy-act:hover,
+.aim-xp .aim-buddy-act:focus-visible {
+  background: #cfe1f5;
+  color: #093040;
+}
+/* Keep actions reachable for keyboard users even without hover. */
+.aim-xp .aim-buddy-act:focus-visible {
+  opacity: 1;
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+}
 /* Recursive buddy-tree disclosure caret (parent rows only).
    A right-pointing triangle when collapsed, down when expanded — drawn with a
    CSS border triangle so there is no glyph/font dependency and it scales
@@ -340,220 +502,74 @@
   color: #333;
 }
 
-/* Transcript — a sunken XP-style read area (white well). */
-.aim-xp .aim-win-transcript {
+/* The chat: bb's own ThreadChat, filling the rest of the window body. */
+.aim-xp .aim-win-chat {
   flex: 1 1 auto;
-  min-height: 32px;
-  overflow-y: auto;
-  padding: 8px 9px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border-top: 1px solid #808080;
   border-bottom: 1px solid #fff;
   box-shadow: inset 1px 1px #808080, inset -1px -1px #d5d0c9;
-  font-size: 12px;
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-/* Off-screen polite live region (sr-only) announcing new transcript rows. */
-.aim-xp .aim-announcer {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.aim-xp .aim-msg-loading,
-.aim-xp .aim-msg-error,
-.aim-xp .aim-msg-empty {
   font-size: 12px;
-  line-height: 1.5;
 }
-.aim-xp .aim-msg-error { color: #8b1e1e; }
-
-/* Message bubbles. */
-.aim-xp .aim-tx {
-  display: flex;
-  flex-direction: column;
-  max-width: 96%;
-}
-.aim-xp .aim-tx.aim-user { align-self: flex-end; }
-.aim-xp .aim-tx.aim-assistant { align-self: flex-start; }
-.aim-xp .aim-tx-name {
-  font-size: 10px;
-  margin-bottom: 1px;
-  color: #555;
-}
-.aim-xp .aim-tx-name-agent { color: #1d5a9e; }
-
-/* Agent thinking — the reasoning bb shows in its own thread window, rendered
-   here as an always-collapsible block above the reply. Matches the muted,
-   italic look of bb's thinking rows. */
-.aim-xp .aim-tx-thinking {
-  max-width: 100%;
-  margin: 0 0 4px;
-  border: 1px dotted #b9c1cc;
-  border-radius: 4px;
-  background: #eef2f7;
-  color: #4a5666;
-}
-.aim-xp .aim-tx-thinking-label {
-  cursor: pointer;
-  font-size: 11px;
-  font-style: italic;
-  color: #4a5666;
-  padding: 4px 8px;
-  user-select: none;
-}
-.aim-xp .aim-tx-thinking-label::-webkit-details-marker { color: #4a5666; }
-.aim-xp .aim-tx-thinking[open] .aim-tx-thinking-block {
-  border-top: 1px dotted #b9c1cc;
-}
-.aim-xp .aim-tx-thinking-block {
-  padding: 6px 8px 8px;
-}
-.aim-xp .aim-tx-thinking-text {
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  font-size: 11.5px;
-  line-height: 1.5;
-  font-style: italic;
-}
-.aim-xp .aim-tx-thinking-text > *:first-child { margin-top: 0; }
-.aim-xp .aim-tx-thinking-text > *:last-child { margin-bottom: 0; }
-.aim-xp .aim-tx-thinking-text p { margin: 0 0 6px; }
-.aim-xp .aim-tx-thinking-text p:last-child { margin-bottom: 0; }
-.aim-xp .aim-tx-thinking-text pre,
-.aim-xp .aim-tx-thinking-text code {
-  font-style: normal;
+/* Let the host component own its scrolling/height inside our flex body. */
+.aim-xp .aim-thread-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
-.aim-xp .aim-tx-text {
-  white-space: normal;
-  word-break: break-word;
+/* Presence strip may wrap when branch/busy chips are present. */
+.aim-xp .aim-win-meta {
+  flex-wrap: wrap;
+}
+.aim-xp .aim-win-meta-status {
   min-width: 0;
-  padding: 6px 9px;
-  border: 1px solid #c8cdd4;
-  border-radius: 4px;
-  background: #f4f8fc;
-  color: #14273d;
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-/* Markdown shaping inside the small AIM bubble. */
-.aim-xp .aim-tx-text > *:first-child { margin-top: 0; }
-.aim-xp .aim-tx-text > *:last-child { margin-bottom: 0; }
-.aim-xp .aim-tx-text p { margin: 0 0 6px; }
-.aim-xp .aim-tx-text p:last-child { margin-bottom: 0; }
-.aim-xp .aim-tx-text h1,
-.aim-xp .aim-tx-text h2,
-.aim-xp .aim-tx-text h3,
-.aim-xp .aim-tx-text h4,
-.aim-xp .aim-tx-text h5,
-.aim-xp .aim-tx-text h6 {
-  font-size: 13px;
-  font-weight: 700;
-  margin: 8px 0 4px;
-  line-height: 1.3;
-  color: var(--aim-blue-deep);
-}
-.aim-xp .aim-tx-text ul,
-.aim-xp .aim-tx-text ol { margin: 0 0 6px; padding-left: 18px; }
-.aim-xp .aim-tx-text li { margin: 0 0 2px; }
-.aim-xp .aim-tx-text pre {
-  font-size: 11px;
-  line-height: 1.45;
-  overflow-x: auto;
-  margin: 0 0 6px;
-  padding: 6px;
-  border-radius: 4px;
-  background: #eef2f7;
-  border: 1px solid var(--aim-line-soft);
-}
-.aim-xp .aim-tx-text code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  background: rgba(0, 0, 0, 0.06);
-  padding: 1px 3px;
-  border-radius: 3px;
-}
-.aim-xp .aim-tx-text pre code { background: none; padding: 0; }
-.aim-xp .aim-tx-text blockquote {
-  margin: 0 0 6px;
-  padding: 0 8px;
-  border-left: 3px solid var(--aim-line);
-  color: #45525f;
-}
-.aim-xp .aim-tx-text a { color: #1d6fd0; text-decoration: underline; }
-.aim-xp .aim-tx-text img { max-width: 100%; height: auto; border-radius: 4px; }
-.aim-xp .aim-tx-text table { border-collapse: collapse; margin: 0 0 6px; }
-.aim-xp .aim-tx-text th,
-.aim-xp .aim-tx-text td { border: 1px solid #c8cdd4; padding: 3px 6px; }
-.aim-xp .aim-tx-text hr { border: none; border-top: 1px solid #c8cdd4; margin: 6px 0; }
-.aim-xp .aim-user .aim-tx-text {
-  align-self: flex-end;
-  background: #dcedff;
-  border-color: #bfe0ff;
-  border-bottom-right-radius: 2px;
-}
-.aim-xp .aim-assistant .aim-tx-text {
-  border-bottom-left-radius: 2px;
-}
-.aim-xp .aim-tx-truncated {
-  font-size: 10px;
-  color: #7a8796;
-  text-align: center;
+/* Chips flow after the status; the provider chip no longer pushes to the far
+   edge now that up to three chips can be present. */
+.aim-xp .aim-win-meta .aim-status-chip { margin-left: 0; }
+.aim-xp .aim-win-meta .aim-status-chip:first-of-type { margin-left: auto; }
+.aim-xp .aim-status-chip-branch {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  font-family: "Cascadia Mono", Consolas, monospace;
 }
 
-/* Composer. */
-.aim-xp .aim-win-composer {
+/* Bottom action row: "Open thread" plus the machine name. */
+.aim-xp .aim-win-actions {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 8px 9px 9px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
   background: #ece9d8;
   border-top: 1px solid #fff;
 }
-.aim-xp .aim-composer-input {
-  width: 100%;
-  resize: none;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.45;
-  padding: 5px 6px;
-  /* XP sunken textbox: white well with inset bevel. */
-  border: none;
-  background: #fff;
-  color: #000;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #d5d0c9, inset 2px 2px #808080;
+.aim-xp .aim-win-actions button { min-width: 0; }
+.aim-xp .aim-win-host {
+  margin-left: auto;
+  font-size: 10px;
+  color: #55606e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
 }
-.aim-xp .aim-composer-input:focus {
-  outline: 1px dotted #000;
-  outline-offset: -2px;
+
+/* Focused window gets a subtly stronger title bar so the active IM is clear. */
+.aim-xp .aim-win-active .title-bar {
+  background: linear-gradient(180deg, #2f7fbf 0%, #1d5a9e 100%);
 }
-.aim-xp .aim-composer-input:disabled { background: #eef1f5; color: #99a4b1; }
-.aim-xp .aim-composer-error {
-  font-size: 11px;
-  color: #8b1e1e;
-}
-.aim-xp .aim-composer-row {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-/* XP.css themes bare `button`; these adjust min-width so our small composer
-   buttons (Send / Open thread) don't balloon to the Win98 default 75px. */
-.aim-xp .aim-composer-row button {
-  min-width: 0;
-}
+
 .aim-xp button[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 /* ----- Windows 98-style taskbar -----
@@ -577,6 +593,71 @@
   user-select: none;
 }
 .aim-xp .aim-taskbar-spacer { flex: 1 1 auto; }
+
+/* ----- Taskbar window buttons -----
+   One button per IM window (visible or hidden). This is the recall surface:
+   a minimized window is restored from here, and a thread that needs input is
+   flagged with a red mark so the demand is visible without opening the list. */
+.aim-xp .aim-taskbar-windows {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 60%;
+}
+.aim-xp .aim-task-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 150px;
+  height: 22px;
+  padding: 0 7px;
+  border: none;
+  border-radius: 0;
+  background: #c0c0c0;
+  /* Raised bevel; the focused window gets the pressed one below. */
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  color: #000;
+  text-shadow: none;
+  font-family: "Pixelated MS Sans Serif", Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+}
+.aim-xp .aim-task-btn-open {
+  /* Pressed bevel = this window is on screen. */
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: #d4d0c8;
+  font-weight: 700;
+}
+.aim-xp .aim-task-btn:hover { background: #cfcac2; }
+.aim-xp .aim-task-btn-needs {
+  border-left: 3px solid #c1272d;
+}
+.aim-xp .aim-task-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aim-xp .aim-task-needs {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  text-align: center;
+  border-radius: 50%;
+  background: #c1272d;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+/* Respect reduced-motion for the attention pulse on a flagged taskbar button. */
+@media (prefers-reduced-motion: reduce) {
+  .aim-xp .aim-task-btn-needs { animation: none; }
+}
 
 /* Win98 raised button for the Start button. */
 .aim-xp .aim-start-btn {
@@ -812,16 +893,16 @@
   border-top-color: #fff8e0;
 }
 
-/* Beveled buttons surfaced on the palette: keep the Win98 silver bevel but tint
-   the Send/Open composer actions gold-ish, like AIM's button bar. */
-.aim-xp .aim-composer-row button {
+/* Beveled buttons surfaced on the palette: keep the Win98 silver bevel but
+   tint the window action button gold-ish, like AIM's button bar. */
+.aim-xp .aim-win-actions button {
   background: #f0e6b8;
   border: 1px solid #b7a15a;
   box-shadow: none;
   color: #222;
   text-shadow: none;
 }
-.aim-xp .aim-composer-row button:active {
+.aim-xp .aim-win-actions button:active {
   background: #d8c88f;
 }
-.aim-xp .aim-composer-row button:hover { text-shadow: none; }
+.aim-xp .aim-win-actions button:hover { text-shadow: none; }
