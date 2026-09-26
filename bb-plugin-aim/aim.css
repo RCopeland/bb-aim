@@ -24,7 +24,12 @@
   width: 100%;
   height: 100%;
   min-height: 100%;
-  overflow: hidden;
+  /* NOTE: deliberately NOT `overflow: hidden`. The desktop root is an
+     ancestor of the host's `ThreadChat`, and popovers it opens (the model /
+     permission dropdowns in the composer) are rendered inside that subtree.
+     Clipping here cut them off at the panel edge, which is what made the model
+     menu look like it was "under" the IM window. Wallpaper and window layers
+     are all `position: absolute` within this box, so nothing needs clipping. */
   font-family: "Pixelated MS Sans Serif", Tahoma, "Segoe UI", Arial, sans-serif;
   color: #000;
   user-select: none;
@@ -80,10 +85,12 @@
   z-index: 1;
   pointer-events: auto;
 }
+/* `overflow: hidden` would clip host popovers (see .aim-root), and the window
+   body is already a flex column whose chat child scrolls itself. The rounded
+   corners the original clipping protected are square in this theme. */
 .aim-xp .aim-win {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 .aim-xp .aim-buddy {
   display: flex;
@@ -512,10 +519,15 @@
   border-top: 1px solid #808080;
   border-bottom: 1px solid #fff;
   box-shadow: inset 1px 1px #808080, inset -1px -1px #d5d0c9;
-  overflow: hidden;
+  /* No `overflow: hidden`: the host chat's composer popovers must be able to
+     escape this box. `ThreadChat` scrolls its own transcript. */
   font-size: 12px;
 }
-/* Let the host component own its scrolling/height inside our flex body. */
+/* Let the host component own its scrolling/height inside our flex body.
+   `min-height: 0` is what lets it shrink and scroll in this flex column.
+   Deliberately not `overflow: hidden` here: the composer's model / permission
+   dropdowns render inside this subtree and would be clipped at the window
+   edge. `ThreadChat` owns its own scroll container, so we must not add one. */
 .aim-xp .aim-thread-chat {
   flex: 1 1 auto;
   min-height: 0;
