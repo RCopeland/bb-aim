@@ -146,3 +146,7 @@ npx tsc --noEmit
 
 The frontend compiles to `dist/app.js` + `dist/app.css`; React and the SDK
 are provided by bb at runtime (never bundled).
+
+## License
+
+[MIT](LICENSE) © Rob Copeland
