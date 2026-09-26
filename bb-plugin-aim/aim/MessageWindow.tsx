@@ -33,8 +33,17 @@ export interface ImWindowState {
   height: number;
 }
 
-export const DEFAULT_W = 312;
-export const DEFAULT_H = 300;
+/**
+ * Default IM window size.
+ *
+ * These were 312x300 when the popup only drew plain message bubbles. It now
+ * hosts bb's real `ThreadChat` (timeline with tool calls and diffs, plus the
+ * full composer with attach / mention / permission controls), so the old size
+ * was too cramped to read or type in. Sized for the chat surface, not the old
+ * bubble list.
+ */
+export const DEFAULT_W = 440;
+export const DEFAULT_H = 540;
 
 export interface MessageWindowProps {
   window: ImWindowState;

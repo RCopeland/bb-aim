@@ -23,7 +23,7 @@ import {
   type ImWindowState,
 } from "./MessageWindow";
 import type { DragBoundsRef } from "./useAimDrag";
-import type { ResizeTarget } from "./useAimResize";
+import { MIN_H, MIN_W, type ResizeTarget } from "./useAimResize";
 
 const OVERLAY_BASE_Z = 2_147_480_000;
 const FLASH_MS = 1500;
@@ -32,12 +32,28 @@ const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // match server cap
 
 /** Build a fresh IM window entry for a thread. */
+/**
+ * Build a fresh IM window entry for a thread, sized to fit the current
+ * desktop. The default chat size is the preferred size, but on a small
+ * viewport a 440x540 window would hang off the edge (and the auto-reopen path
+ * creates windows without a cascade position), so clamp down to the available
+ * area, never below the resize minimums.
+ */
 function newWindow(
   threadId: string,
   x: number,
   y: number,
   z: number,
+  desktop?: { width: number; height: number },
 ): ImWindowState {
+  const fitW =
+    desktop === undefined
+      ? DEFAULT_W
+      : Math.max(MIN_W, Math.min(DEFAULT_W, desktop.width - 32));
+  const fitH =
+    desktop === undefined
+      ? DEFAULT_H
+      : Math.max(MIN_H, Math.min(DEFAULT_H, desktop.height - y - 16));
   return {
     threadId,
     visible: true,
@@ -45,8 +61,8 @@ function newWindow(
     y,
     z,
     flash: false,
-    width: DEFAULT_W,
-    height: DEFAULT_H,
+    width: fitW,
+    height: fitH,
   };
 }
 
@@ -335,11 +351,12 @@ export function DesktopPage() {
             24 + (count % 5) * 28,
             24 + (count % 5) * 28,
             nextZ(),
+            size,
           ),
         };
       });
     },
-    [nextZ],
+    [nextZ, size],
   );
 
   const onFocusWindow = useCallback(
@@ -415,7 +432,10 @@ export function DesktopPage() {
         };
         next[threadId] = existing
           ? { ...existing, visible: true, flash: !reducedMotion, z: nextZ() }
-          : { ...newWindow(threadId, base.x, base.y, nextZ()), flash: !reducedMotion };
+          : {
+              ...newWindow(threadId, base.x, base.y, nextZ(), size),
+              flash: !reducedMotion,
+            };
       }
       return next;
     });
@@ -429,7 +449,7 @@ export function DesktopPage() {
         }, FLASH_MS),
       );
     }
-  }, [status, threads, nextZ, reducedMotion]);
+  }, [status, threads, nextZ, reducedMotion, size]);
 
   // Always clean timers on unmount too.
   useEffect(() => {
