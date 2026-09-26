@@ -7,79 +7,89 @@ windows** — all in-app elements (no new browser windows).
 
 ## What you get
 
-- **Buddy list** — each bb-app thread is a buddy, shown with its name and a
-  classic presence bullet (online / away / idle / offline / waiting-for-you).
-  It's draggable and collapsible.
-- **IM windows** — clicking a buddy pops up an IM window for that thread,
-  styled with **Windows 98 chrome** (scoped `98.css`) re-skinned with the
-  **AIM 3.0 (1999) palette**: teal-slate title/status bars, silver list body,
-  pale-gold header bands and Running-Man-gold accents — a faithful nod to the
-  real AOL Instant Messenger buddy list / IM window look. Windows are
-  draggable, resizable (drag the bottom corners), and float above the app.
-- **Mini-thread popups** — each IM window doubles as a real thread: it shows
-  the latest conversation transcript (agent + your messages as chat bubbles)
-  and lets you reply in place with a labelled composer (Enter sends,
-  Shift+Enter newline). Replies continue that thread on its own engine, same
-  as typing in the app's composer.
-- **Live transcript** — the popup re-fetches from the thread whenever its
-  activity changes (short debounce), keeping the conversation fresh; it
-  auto-scrolls to the newest message unless you've scrolled up.
-- **Pops back when you're needed** — when a thread is blocked waiting for
-  your input and its box is hidden, the window auto-returns with a short
-  emphasis animation.
+- **Buddy list** — each bb-app thread is a buddy, in bb's own parent/child tree.
+  Rows carry the same detail bb's default sidebar rows do: name, presence
+  bullet (online / away / idle / offline / needs-you), unread + pinned state,
+  running activity (agents / workflows / commands / plans / goals), branch,
+  workspace kind, machine, project, provider, fork origin, PR state and
+  last-activity time. Per-row actions pin, mark read/unread, and archive
+  through bb's own thread APIs. Draggable, collapsible, keyboard reachable.
+- **IM windows** — clicking a buddy pops up an IM window for that thread. Each
+  window wraps **bb's own `ThreadChat` component**, so it has full thread
+  functionality: the real timeline (including tool calls, diffs, file rows and
+  queued messages), the real composer, attachments, @-mentions, drafts and the
+  thread's own permission mode. Sends go through the host's submit pipeline
+  exactly as they do in the main pane. Windows are draggable, resizable, and
+  float above the app.
+- **Pops back when you're needed** — when a thread stops needing you no longer
+  (blocked on input, an unread error, an unread success) and its window is
+  hidden, the window auto-returns with a short emphasis animation. The pop-up
+  fires on the rising edge only, so it never re-pops every render.
+- **Taskbar** — every IM window has a taskbar button, visible or hidden. A
+  minimized window is recalled from there without opening the buddy list, and a
+  thread that needs you is flagged in place, so the demand is visible even when
+  the window is hidden. Clicking the focused window's button hides it.
 - **Hide never kills** — closing a box only hides it; the thread keeps
   running in bb-app and the window keeps its position/state.
 - **Reduced-motion safe** — the emphasis animation and presence pulse are
   disabled for `prefers-reduced-motion` users (reopen still happens).
-- **Keyboard accessible** — buddy rows and all window controls are real
-  `<button>`s with labels.
-
-- **Changeable wallpaper** — right-click the desktop, or click the
-  "Wallpaper" desktop icon (top-left) to open the keyboard-reachable
-  wallpaper-controls panel, to upload a PNG/JPEG/GIF/WebP image. It is stored
-  **server-side**
-  in the plugin's SQLite database and served back through a plugin HTTP
-  route, so it persists across reloads and app restarts. "Restore default"
-  reverts to the built-in classic-style CSS wallpaper.
+- **Keyboard accessible** — buddy rows, row actions and all window controls are
+  real `<button>`s with labels.
+- **Changeable wallpaper** — right-click the desktop to upload a
+  PNG/JPEG/GIF/WebP wallpaper. It is stored **server-side** in the plugin's
+  SQLite database and served back through a plugin HTTP route, so it persists
+  across reloads and app restarts. "Restore default" reverts to the built-in
+  CSS wallpaper.
 
 ## Layout
 
 ```
 app.tsx            registers the navPanel (sidebar entry + desktop route)
 server.ts          wallpaper: DB BLOB persistence + HTTP route + RPC
-aim/DesktopPage.tsx desktop page: wallpaper, context menu, window/auto-reopen state
-aim/BuddyList.tsx  the buddy list
-aim/MessageWindow.tsx the IM popup
-aim/types.ts        thread indicator -> presence / isWaitingForInput mapping
+                   (no thread read/write RPCs — ThreadChat owns that)
+aim/DesktopPage.tsx desktop page: wallpaper, context menu, window state,
+                   attention auto-reopen, taskbar
+aim/BuddyList.tsx  the buddy list (one BuddyRow per thread, per-row host hooks)
+aim/MessageWindow.tsx the IM window: AIM chrome around the host ThreadChat
+aim/types.ts        indicator -> presence/attention mapping + row-format helpers
 aim/useAimDrag.ts   pointer-based drag (handles move/up/cancel)
-aim/WIN98_scoped.css vendored, scoped 98.css (Win98 base) — regenerate via script
-scripts/make-98-scoped.mjs prefixes + inlines fonts, scoping to .aim-xp
-aim.css            the AIM desktop chrome, wallpaper layers, context menu, AIM 3.0 palette
+aim/useAimResize.ts pointer-based corner resize, clamped to the desktop
+aim/chrome.css     our own window chrome primitives, scoped to .aim-xp
+aim.css            the AIM palette, desktop layout, wallpaper layers, menus
 ```
 
-## Vintage theme (Win98 base + AIM 3.0 palette)
+## Theme (light retro IM, not a Win98 shell)
 
-The AIM chrome sits on **98.css** (`98.css@0.1.21`, MIT — jdan/98.css, the era-
-correct Windows 98 design system; XP.css "Luna" would be Windows XP / 2001).
-The raw stylesheet uses generic classes (`.window`, `button`, `title-bar`) that
-would leak into the rest of bb-app, so it's **scoped** by
-`scripts/make-98-scoped.mjs` into `aim/WIN98_scoped.css`: every selector is
-prefixed with `.aim-xp`, and the `Pixelated MS Sans Serif` fonts are inlined as
-base64. `98.css` is a devDependency — only the vendored scoped CSS ships.
-Regenerate after any bump with `node scripts/make-98-scoped.mjs`; `app.tsx`
-imports it before `aim.css`, and a trailing **AIM 3.0 palette layer** in
-`aim.css` re-skins the Win98 chrome with the teal-slate / silver / gold colors
-of the real AOL Instant Messenger 3.0 (1999) buddy list and IM windows.
+Earlier versions vendored the whole **98.css** design system (~68KB, scoped by
+`scripts/make-98-scoped.mjs`) and skinned it with the AIM 3.0 palette. That was
+retired deliberately: shipping an entire OS design system meant a large vendored
+artifact to keep re-scoping, plus dozens of generic rules (`.window`, `button`,
+`.title-bar`) that kept pulling the layout back toward a 1998 desktop instead of
+letting thread detail and the real chat use the space.
+
+`aim/chrome.css` now defines only the primitives the components actually use —
+`.window`, `.window-body`, `.title-bar*`, `.status-bar*`, `.tree-view`, and
+`button` — all scoped under `.aim-xp` so nothing can leak into the host app.
+`aim.css` layers the AIM palette (teal title bars, silver body, gold accents)
+on top. There is nothing to regenerate; the `98.css` devDependency and the
+scoping script are gone.
 
 ## Thread state signal
 
-The "waiting for user input" signal is bb's resolved sidebar indicator
-`indicator === "waiting-for-input"`, OR-ed with `hasPendingInteraction`
-(pending approval/question). This is read live via
-`experimental_useSidebarThreads()`. There is no gap: it's the faithful
-"agent is blocked on you" flag. `threadPresence()` in `aim/types.ts` maps
-every other indicator to a presence bullet and treats unknown values as
-offline.
+Two related predicates live in `aim/types.ts`:
+
+- `isWaitingForInput(thread)` — bb's resolved `indicator === "waiting-for-input"`,
+  OR-ed with `hasPendingInteraction` (a pending approval/question). This is the
+  faithful "the agent is blocked on you" flag.
+- `needsAttention(thread)` — the broader "come look at me" signal used by the
+  auto-reopen edge, the buddy-list marker and the taskbar flag. It covers
+  `isWaitingForInput` plus `unread-error` and `unread-success`, so a failed or
+  finished-but-unseen thread also surfaces. All three surfaces read this one
+  function, so they cannot disagree.
+
+Both are read live via `experimental_useSidebarThreads()`. `threadPresence()`
+maps every other indicator to a presence bullet and treats unknown values as
+offline (bb adds indicator kinds over time).
 
 ## How it works
 
@@ -88,12 +98,32 @@ offline.
   The former always-on `experimental_appOverlay` registration was removed, so
   the AIM chrome appears only on this page.
 - The desktop fills the panel body; the buddy list and IM windows position
-  absolutely within it and clamp to its size while dragging.
+  absolutely within it and clamp to its size while dragging. The bottom
+  `TASKBAR_H` strip is reserved out of the drag bounds so a window can never be
+  dragged under the taskbar.
+- **IM windows render bb's own `ThreadChat`** (`variant="compact"`,
+  `layout="contained"`, `permissionPolicy="inherit"`). The plugin does not read
+  or write thread transcripts itself. The previous hand-rolled path flattened
+  the timeline to `kind: "conversation"` rows — silently dropping tool calls,
+  diffs, files, queued messages and drafts — and sent via
+  `bb.sdk.threads.send` directly, bypassing the host submit pipeline. `inherit`
+  matters: a plugin surface must never widen a thread's permission mode.
+- The buddy list is a **parallel view, not a sidebar replacement**. bb's default
+  sidebar list is left registered and untouched; `experimental_threadList` is
+  deliberately NOT used. Rows reach information parity by reading the same host
+  hooks bb's own rows read (`experimental_useSidebarThreads`,
+  `experimental_useProviders`, `experimental_useSidebarThreadPullRequest`,
+  `experimental_useSidebarThreadSplit`), and act through
+  `experimental_useSidebarThreadActions` (pin / read / rename / archive /
+  requestDelete).
+- The per-row PR and split hooks are called inside `BuddyRow` — one component
+  instance per row — never in a loop in the list component (rules of hooks).
 - Opening a thread from an IM window routes through bb's own
   `experimental_useSidebarThreadActions().open(id)`, so splits, panes, and
   shortcuts behave as usual.
 - Closing a window sets `visible: false` only — the thread id and window
-  position stay in state, and the thread is never touched.
+  position stay in state, and the thread is never touched. The taskbar button
+  restores it.
 - The wallpaper uploads as base64 over RPC, is validated by magic bytes
   (PNG/JPEG/GIF/WebP), stored as a BLOB in `bb.storage.database()`, and
   served by `bb.http.route("GET", "/wallpaper", …)`. Picking an image
@@ -116,3 +146,7 @@ npx tsc --noEmit
 
 The frontend compiles to `dist/app.js` + `dist/app.css`; React and the SDK
 are provided by bb at runtime (never bundled).
+
+## License
+
+[MIT](LICENSE) © Rob Copeland

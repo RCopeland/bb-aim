@@ -44,40 +44,12 @@ export const rpcContract = defineRpcContract({
     output: z.object({ set: z.boolean(), url: z.null() }),
     // url: null only — zod output can be { set: boolean } too; keep simple below
   },
-  thread_history: {
-    input: z.object({ threadId: z.string().min(1) }).strict(),
-    output: z.object({
-      messages: z.array(
-        z
-          .object({
-            role: z.enum(["user", "assistant"]),
-            text: z.string(),
-            createdAt: z.number(),
-            id: z.string(),
-            /**
-             * The agent's visible thinking for this row, in order, or null
-             * when the row has none (user rows, or assistant rows that never
-             * reasoned). Rendered collapsed, like bb's own thread window.
-             */
-            thinking: z.array(z.string()).nullable(),
-          })
-          .strict(),
-      ),
-      truncated: z.boolean(),
-      /** null when the load succeeded; a human-readable reason otherwise. */
-      error: z.string().nullable(),
-    }),
-  },
-  thread_send: {
-    input: z
-      .object({ threadId: z.string().min(1), text: z.string().trim().min(1).max(40000) })
-      .strict(),
-    output: z.object({
-      ok: z.boolean(),
-      delivery: z.enum(["sent", "queued"]),
-    }),
-  },
 });
+// NOTE: the transcript/send RPCs (`thread_history`, `thread_send`) and the
+// timeline-flattening helpers behind them were removed. The IM window now
+// renders the host's own `ThreadChat`, so the plugin no longer reimplements
+// thread reads or sends — that hand-rolled path dropped tool/diff/file/queue
+// rows and bypassed the host submit pipeline.
 // Make the clear output a plain object to keep the null-only url.
 type WallpaperClearOutput = { set: boolean; url: null };
 
@@ -145,123 +117,6 @@ export default async function plugin(bb: BbPluginApi) {
     db.prepare("DELETE FROM aim_wallpaper WHERE id = 1").run();
   }
 
-  /**
-   * Read every "reasoning" item (the agent's thinking) from the thread's raw
-   * event stream, keyed by the turn it belongs to. Thinking lives not in the
-   * SDK timeline rows but in `item/completed` events whose `item.type` is
-   * "reasoning"; we fetch the newest events, walk them ascending, and build a
-   * turnId -> thinking[] map that `readTranscript` attaches to each row.
-   */
-  async function readThinkingByTurn(
-    threadId: string,
-  ): Promise<Map<string, string[]>> {
-    const events = await bb.sdk.threads.events.list({
-      threadId,
-      order: "desc",
-      limit: "4000",
-    });
-    const byTurn = new Map<string, string[]>();
-    // events.list return order is whatever we asked for; newest-first here, so
-    // walk backwards to attach blocks in their original order.
-    for (let i = events.length - 1; i >= 0; i -= 1) {
-      const event = events[i];
-      if (event.type !== "item/completed") continue;
-      const item = event.data.item;
-      if (!item || item.type !== "reasoning") continue;
-      const turnId = event.scope.kind === "turn" ? event.scope.turnId : null;
-      if (!turnId) continue;
-      const lines: string[] = [];
-      if (Array.isArray(item.summary)) lines.push(...item.summary);
-      if (Array.isArray(item.content)) lines.push(...item.content);
-      const text = lines.join("\n\n").trim();
-      if (!text) continue;
-      const existing = byTurn.get(turnId);
-      if (existing) existing.push(text);
-      else byTurn.set(turnId, [text]);
-    }
-    return byTurn;
-  }
-
-  /**
-   * Flatten a thread's timeline into an ordered conversation transcript.
-   * assistant/user rows carry `kind: "conversation"`; tool/work rows are
-   * skipped, but assistant replies can be nested inside turn rows (`children`),)
-   * so we walk recursively. `includeNestedRows: "true"` asks the SDK to return
-   * the children so nothing is missed. Each assistant row also gets its agent's
-   * `thinking` attached (from `readThinkingByTurn`), keyed by the row's turn.
-   */
-  async function readTranscript(
-    threadId: string,
-  ): Promise<
-    Array<{
-      role: "user" | "assistant";
-      text: string;
-      createdAt: number;
-      id: string;
-      thinking: string[] | null;
-    }>
-  > {
-    const result = await bb.sdk.threads.timeline({
-      threadId,
-      includeNestedRows: "true",
-    });
-    const raw: Array<{
-      role: "user" | "assistant";
-      text: string;
-      createdAt: number;
-      id: string;
-      turnId: string | null;
-    }> = [];
-    const walk = (rows: readonly unknown[]): void => {
-      for (const rawRow of rows) {
-        const row = rawRow as {
-          kind?: string;
-          role?: "user" | "assistant";
-          text?: string;
-          createdAt?: number;
-          id?: string;
-          turnId?: string | null;
-          children?: readonly unknown[] | null;
-        };
-        if (!row) continue;
-        if (row.kind === "conversation" && (row.role === "user" || row.role === "assistant")) {
-          raw.push({
-            role: row.role,
-            text: row.text ?? "",
-            createdAt: row.createdAt ?? 0,
-            id: row.id ?? `${row.role}-${row.createdAt ?? 0}`,
-            turnId: row.turnId ?? null,
-          });
-        }
-        if (Array.isArray(row.children) && row.children.length > 0) {
-          walk(row.children);
-        }
-      }
-    };
-    walk(result.rows);
-
-    const thinkingByTurn = await readThinkingByTurn(threadId);
-    const out: Array<{
-      role: "user" | "assistant";
-      text: string;
-      createdAt: number;
-      id: string;
-      thinking: string[] | null;
-    }> = [];
-    for (const message of raw) {
-      out.push({
-        role: message.role,
-        text: message.text,
-        createdAt: message.createdAt,
-        id: message.id,
-        thinking:
-          message.turnId != null ? thinkingByTurn.get(message.turnId) ?? null : null,
-      });
-    }
-    out.sort((a, b) => a.createdAt - b.createdAt);
-    return out;
-  }
-
   // --- Serve the stored image over a plugin HTTP route. ---
   bb.http.route(
     "GET",
@@ -319,37 +174,6 @@ export default async function plugin(bb: BbPluginApi) {
       clearWallpaper();
       bb.realtime.publish(WALLPAPER_CHANGED, { set: false });
       return { set: false, url: null };
-    },
-    thread_history: async ({ threadId }) => {
-      const MAX_ENTRIES = 80;
-      try {
-        const transcript = await readTranscript(threadId);
-        if (transcript.length > MAX_ENTRIES) {
-          return {
-            messages: transcript.slice(-MAX_ENTRIES),
-            truncated: true,
-            error: null,
-          };
-        }
-        return { messages: transcript, truncated: false, error: null };
-      } catch (err) {
-        return {
-          messages: [],
-          truncated: false,
-          error: err instanceof Error ? err.message : "Could not load this thread's conversation.",
-        };
-      }
-    },
-    thread_send: async ({ threadId, text }) => {
-      // Appends a user message and lets the thread's own engine continue it —
-      // the same as typing in the app's real composer. `auto` starts a turn on
-      // an idle thread or queues/steers a running one.
-      const result = await bb.sdk.threads.send({
-        threadId,
-        mode: "auto",
-        input: [{ type: "text", text, mentions: [] }],
-      });
-      return { ok: result.ok, delivery: result.delivery };
     },
   });
 

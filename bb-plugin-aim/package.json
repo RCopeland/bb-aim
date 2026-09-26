@@ -1,6 +1,7 @@
 {
   "name": "bb-plugin-aim",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "bb": ">=0.42",
@@ -24,10 +25,8 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "98.css": "^0.1.21",
     "better-sqlite3": "^12.0.0",
     "hono": "^4.11.9",
-    "typescript": "^5.7.0",
-    "98.css": "^0.1.21"
+    "typescript": "^5.7.0"
   }
 }
