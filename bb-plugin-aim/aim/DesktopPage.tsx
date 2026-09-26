@@ -28,28 +28,34 @@ import { MIN_H, MIN_W, type ResizeTarget } from "./useAimResize";
 /**
  * Z-ordering budget for the AIM page.
  *
- * Every layer the plugin draws is an absolutely-positioned overlay, so the
- * order is explicit and must be respected:
+ * CRITICAL: these values are deliberately SMALL. The AIM desktop renders inside
+ * the bb app's own stacking context and is an ANCESTOR of the host's
+ * `ThreadChat`, whose composer popovers (model / permission dropdowns) are the
+ * thing this budget must not cover.
  *
- *   1,000,000  backdrop (wallpaper)
- *   1,000,100  windows  ← IM windows raise within this band only
- *   1,000,900  taskbar
- *   1,000,950  start menu + its flyouts
- *   1,001,000  context menu, status toast
+ * The host's own popover layers are modest — its Tailwind scale tops out at
+ * `z-100`, and the composer menus sit at `z-[45]` / `z-[70]`. An earlier
+ * version used ~2.1 billion for windows and 1,000,100 after a first fix; both
+ * were orders of magnitude above the host, so every host popover opened
+ * UNDERNEATH our window. That was the "model menu appears behind the IM
+ * window" bug — it was never a clipping or caching problem.
  *
- * The previous base was 2_147_480_000 — near the top of the integer range and
- * only 4,000 slots below the menu layers. Since a window raises by +1 on every
- * focus, a long session pushed IM windows ABOVE the taskbar and menus, which
- * is why the model dropdown opened underneath the window (the host renders
- * that popover in its own stacking context, and our window's enormous
- * z-index won).
+ * Layout is layered inside the desktop root, so these only need to order our
+ * own children. The band is chosen to sit ABOVE the host's page content
+ * (`z-[1]`) but BELOW its popovers (`z-[45]` / `z-[70]` / `z-100`), so a
+ * dropdown always paints over an IM window:
  *
- * Windows now live in a bounded band well clear of the menu layers, and
- * WINDOW_Z_MAX clamps the counter so raising can never escape it.
+ *     0..9    wallpaper
+ *    11..29   IM windows  ← raise within this band only
+ *    32       taskbar
+ *    34       start menu + flyouts
+ *    36       context menu / status toast
+ *
+ * Every value stays under 45 so no host popover can lose to our chrome.
  */
-const OVERLAY_BASE_Z = 1_000_100;
+const OVERLAY_BASE_Z = 11;
 /** Last usable window z. Raising past this wraps back to the band floor. */
-const WINDOW_Z_MAX = 1_000_880;
+const WINDOW_Z_MAX = 29;
 const FLASH_MS = 1500;
 const BUDDY_WIDTH = 216;
 const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
