@@ -25,7 +25,31 @@ import {
 import type { DragBoundsRef } from "./useAimDrag";
 import { MIN_H, MIN_W, type ResizeTarget } from "./useAimResize";
 
-const OVERLAY_BASE_Z = 2_147_480_000;
+/**
+ * Z-ordering budget for the AIM page.
+ *
+ * Every layer the plugin draws is an absolutely-positioned overlay, so the
+ * order is explicit and must be respected:
+ *
+ *   1,000,000  backdrop (wallpaper)
+ *   1,000,100  windows  ← IM windows raise within this band only
+ *   1,000,900  taskbar
+ *   1,000,950  start menu + its flyouts
+ *   1,001,000  context menu, status toast
+ *
+ * The previous base was 2_147_480_000 — near the top of the integer range and
+ * only 4,000 slots below the menu layers. Since a window raises by +1 on every
+ * focus, a long session pushed IM windows ABOVE the taskbar and menus, which
+ * is why the model dropdown opened underneath the window (the host renders
+ * that popover in its own stacking context, and our window's enormous
+ * z-index won).
+ *
+ * Windows now live in a bounded band well clear of the menu layers, and
+ * WINDOW_Z_MAX clamps the counter so raising can never escape it.
+ */
+const OVERLAY_BASE_Z = 1_000_100;
+/** Last usable window z. Raising past this wraps back to the band floor. */
+const WINDOW_Z_MAX = 1_000_880;
 const FLASH_MS = 1500;
 const BUDDY_WIDTH = 216;
 const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
@@ -112,7 +136,12 @@ export function DesktopPage() {
   const [windows, setWindows] = useState<Record<string, ImWindowState>>({});
   const zCounter = useRef(OVERLAY_BASE_Z);
   const nextZ = useCallback(() => {
-    zCounter.current += 1;
+    // Stay inside the window band: wrapping (rather than growing) keeps raising
+    // from ever climbing into the taskbar/menu layers, and the relative order
+    // of the visible windows stays correct because every live window is
+    // re-raised from the same counter.
+    zCounter.current =
+      zCounter.current >= WINDOW_Z_MAX ? OVERLAY_BASE_Z : zCounter.current + 1;
     return zCounter.current;
   }, []);
 

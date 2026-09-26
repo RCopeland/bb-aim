@@ -447,7 +447,7 @@
   position: absolute;
   left: 10px;
   bottom: 40px;
-  z-index: 2147483000;
+  z-index: 1001000;
   max-width: calc(100% - 20px);
   padding: 4px 8px;
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -570,7 +570,7 @@
   background: linear-gradient(180deg, #2f7fbf 0%, #1d5a9e 100%);
 }
 
-.aim-xp button[disabled] { opacity: 0.55; cursor: not-allowed; }
+/* (The `button[disabled]` dimming lives in chrome.css.) */
 
 /* ----- Windows 98-style taskbar -----
    Fixed at the bottom of the desktop. Houses the Start button and, in a
@@ -581,7 +581,7 @@
   right: 0;
   bottom: 0;
   height: 30px;
-  z-index: 2147483900;
+  z-index: 1000900;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -701,7 +701,7 @@
   position: absolute;
   left: 4px;
   bottom: 34px;
-  z-index: 2147483950;
+  z-index: 1000950;
   display: flex;
   min-width: 180px;
   padding: 2px;
@@ -794,7 +794,7 @@
    popup is restyled here to match the XP beige + blue highlight look. */
 .aim-xp .aim-menu {
   position: absolute;
-  z-index: 2147484000;
+  z-index: 1001000;
   min-width: 180px;
   padding: 3px;
   border: 1px solid #0a0a0a;

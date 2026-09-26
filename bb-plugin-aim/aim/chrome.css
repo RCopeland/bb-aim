@@ -112,8 +112,21 @@
   flex-direction: column;
 }
 
-/* --- Buttons ------------------------------------------------------- */
-.aim-xp button {
+/* --- Buttons -------------------------------------------------------
+ *
+ * SCOPED DELIBERATELY. This must never be a bare `.aim-xp button` rule: the
+ * host's own `ThreadChat` renders inside .aim-root.aim-xp, so a descendant
+ * button rule restyles every control in the chat — including the per-message
+ * copy / diff action buttons, whose icons are clipped to nothing by a 4px/10px
+ * padding and recoloured by our `color`/`background`. (That is exactly the
+ * generic-rule problem this file was written to avoid, so keep these selectors
+ * pinned to AIM-owned chrome: the `.aim-win-*` action row, our buddy list,
+ * menus, taskbar and title bars. Host content is left alone.)
+ *
+ * Only the chrome the plugin itself draws gets the bevel. */
+.aim-xp .aim-win-actions button,
+.aim-xp .aim-menu-item,
+.aim-xp .aim-buddy-new {
   font-family: inherit;
   font-size: 11px;
   color: #000;
@@ -124,9 +137,17 @@
   padding: 4px 10px;
   cursor: pointer;
 }
-.aim-xp button:active {
+.aim-xp .aim-win-actions button:active,
+.aim-xp .aim-menu-item:active,
+.aim-xp .aim-buddy-new:active {
   box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
   padding: 5px 9px 3px 11px;
+}
+/* The `disabled` affordance is safe to keep broad: it only dims, and a host
+   button that disables itself wants the same cue. */
+.aim-xp button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* --- Status bar ---------------------------------------------------- */
