@@ -172,12 +172,25 @@ function BuddyRow({
   );
 
   return (
-    <li className="aim-buddy-li" style={{ paddingLeft: depth * 12 }}>
+    // Indent is a custom property rather than an inline pixel value so the
+    // step size lives in one place (aim.css, `--aim-indent-step`) and rows
+    // cannot drift apart. `depth` is 0 for every top-level thread.
+    <li
+      className="aim-buddy-li"
+      style={{ "--aim-depth": depth } as React.CSSProperties}
+    >
       <div className="aim-buddy-rowwrap">
-        {/* The disclosure caret is its own control. Clicking the row body opens
-            the IM window; clicking the caret only expands/collapses children.
-            Separating them keeps a single click meaning one thing, and keeps
-            both actions keyboard reachable without a double-click. */}
+        {/* The caret column is rendered for EVERY row, not just parents. The
+            caret is a flex sibling of the row button, so rendering it only for
+            parents pushed those rows ~17px right of childless rows and made
+            the list look indented at random. Leaves get an inert spacer of the
+            same width instead, so all names share one left edge and only real
+            nesting (a nonzero `depth`) moves a row.
+
+            For a parent the caret is its own control: clicking the row body
+            opens the IM window, clicking the caret only expands/collapses
+            children, so a single click means one thing and both actions stay
+            keyboard reachable without a double-click. */}
         {isParent ? (
           <button
             type="button"
@@ -193,7 +206,9 @@ function BuddyRow({
               aria-hidden="true"
             />
           </button>
-        ) : null}
+        ) : (
+          <span className="aim-buddy-caret-gutter" aria-hidden="true" />
+        )}
         <button
           type="button"
           // `splitProps` carries the host's split-drag gesture; spreading it is
