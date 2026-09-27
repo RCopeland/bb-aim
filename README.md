@@ -10,16 +10,18 @@ rendered inside the app.
 Your threads become buddies. Clicking one opens an IM window with the real
 chat. When a thread needs you and its window is hidden, the window pops back in.
 
-![The AIM desktop: buddy list on the right, IM windows floating over the wallpaper, and a taskbar along the bottom](docs/aim-desktop.png)
+![The AIM desktop: buddy list on the right, IM windows floating over the wallpaper, and a taskbar along the bottom. The buddy list in this screenshot predates the minimal title-only rows and still shows per-row detail.](docs/aim-desktop.png)
 
 ## What you get
 
-- **A buddy list of your threads** — bb's own parent/child thread tree, with the
-  same row detail bb's default sidebar shows: presence bullet, unread and pinned
-  state, running work (agents, workflows, commands, plans, goals), branch,
-  workspace kind, machine, project, provider, fork origin, PR state, and
-  last-activity time. Rows pin, mark read/unread, and archive through bb's own
-  thread APIs.
+- **A buddy list of your threads** — bb's own parent/child thread tree, drawn as
+  deliberately minimal AIM-style rows: a presence dot and the thread title.
+  Pinned threads carry a gold star, a "needs you" badge marks threads waiting on
+  you, and the one row action is archive, through bb's own thread APIs. The
+  detail the old dense rows showed (presence state, unread, running work,
+  branch, machine, project, provider and last activity) still reaches assistive
+  tech through each row's accessible name, and opening a thread shows the real
+  detail in its IM window.
 - **IM windows with the real chat** — each window wraps bb's own `ThreadChat`
   component, so you get the actual timeline (tool calls, diffs, file rows,
   queued messages), the real composer, attachments, @-mentions, drafts, and the
@@ -80,7 +82,7 @@ plugin that only builds with devDependencies present fails before merge.
 
 ### Testing
 
-Two layers, 86 tests:
+Two layers, 82 tests:
 
 - **Pure logic** (`test/types.test.ts`) — the presence and attention mapping plus
   the row-format helpers in `aim/types.ts`. No plugin host needed.
@@ -96,7 +98,9 @@ Two layers, 86 tests:
 The desktop is a single `navPanel` route with its own sidebar entry — the one
 and only AIM surface. The buddy list is a **parallel view, not a sidebar
 replacement**: bb's default sidebar list stays registered and untouched, and the
-buddy list reaches parity by reading the same host hooks bb's own rows read.
+buddy list reads the same host hooks bb's own rows read but presents a
+deliberately minimal, AIM-style row rather than copying the default sidebar's
+dense detail.
 
 The only server-side piece is wallpaper persistence — the image is stored as a
 BLOB in the plugin's SQLite database and served back through a plugin HTTP

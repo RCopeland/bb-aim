@@ -17,6 +17,14 @@
   --aim-muted: #5c6b7d;
   --aim-line: #9cb8dd;
   --aim-line-soft: #c9dcf2;
+  /* Sizing/placement tokens. These are the single source of truth: the buddy
+     list's default width and height, the right-edge gap it is placed against,
+     and the taskbar strip reserved out of the drag bounds. `aim/DesktopPage.tsx`
+     reads them back at runtime so the two can never drift apart. */
+  --aim-buddy-w: 268px;
+  --aim-buddy-h: 420px;
+  --aim-buddy-margin: 14px;
+  --aim-taskbar-h: 30px;
   /* The desktop fills the navPanel body (definite height from the host
      panel); floating AIM elements position absolutely inside it. XP.css only
      themes `.window` and friends — it does not restyle the page background. */
@@ -95,10 +103,10 @@
 .aim-xp .aim-buddy {
   display: flex;
   flex-direction: column;
-  width: 268px;
+  width: var(--aim-buddy-w);
   /* A definite height, so the body/list can flex-fill it. The list scrolls
      internally once the rows exceed this. */
-  height: 420px;
+  height: var(--aim-buddy-h);
   max-height: calc(100% - 28px);
   overflow: hidden;
 }
@@ -584,7 +592,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 30px;
+  height: var(--aim-taskbar-h);
   z-index: 32;
   display: flex;
   align-items: center;

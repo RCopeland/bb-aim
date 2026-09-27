@@ -7,13 +7,13 @@ threads and draggable **instant-message windows** — no new browser windows.
 ## What you get
 
 - **Buddy list.** Every bb-app thread appears as a buddy, in bb's own
-  parent/child tree. Rows carry the same detail bb's default sidebar rows do:
-  the thread name, a classic presence bullet (online / away / idle / offline /
-  needs-you), unread and pinned state, a summary of running work (background
-  agents, workflows, commands, plans, goals), the branch, the workspace kind
-  (managed or your own worktree), the machine, the project, the provider, a
-  fork badge, PR state, and a relative last-activity time. Per-row actions pin,
-  mark read/unread and archive, through bb's own thread APIs.
+  parent/child tree. Rows are deliberately minimal and AIM-style: a presence dot
+  plus the thread title. A pinned thread carries a gold star, a "needs you"
+  badge marks a thread waiting on you, and the single per-row action is archive,
+  through bb's own thread APIs. The detail the dense rows used to paint
+  (presence state, unread, running activity, branch, machine, project, provider,
+  last-activity time) still reaches assistive tech through each row's accessible
+  name, and the real detail is in the thread's IM window.
 - **Instant-message windows.** Clicking a buddy opens a popup IM window for
   that thread. The window is AIM chrome wrapped around **bb's own `ThreadChat`
   component**, so it has full thread functionality: the real timeline
@@ -87,18 +87,19 @@ plugin surface can never widen a thread's permission mode.
 ## The buddy list is a parallel view, not a sidebar replacement
 
 bb's default sidebar list is intentionally left registered and untouched — the
-plugin does **not** use `experimental_threadList`. The buddy list reaches
-information parity the honest way, by reading the same host hooks bb's own rows
-read:
+plugin does **not** use `experimental_threadList`. The buddy list reads the same
+host hooks bb's own rows read, but presents a deliberately minimal, AIM-style row
+rather than copying the default sidebar's dense detail:
 
 - `experimental_useSidebarThreads()` — the live thread list plus projects
 - `experimental_useProviders()` — provider display names
 - `experimental_useSidebarThreadPullRequest(threadId)` — PR number, state and
   rolled-up attention
 - `experimental_useSidebarThreadSplit(threadId)` — split drag plus pane
-  placement
+  placement (the pane the thread sits in is reported in the row's accessible
+  name; the row does not draw a split indicator)
 - `experimental_useSidebarThreadActions()` — open, pin, read, rename, archive,
-  requestDelete
+  requestDelete. The row itself exposes only `archive`.
 
 The per-row PR and split hooks are called inside the `BuddyRow` component — one
 instance per row — never in a loop in the list component, because that would

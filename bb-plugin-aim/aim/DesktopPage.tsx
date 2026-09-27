@@ -57,13 +57,58 @@ const OVERLAY_BASE_Z = 11;
 /** Last usable window z. Raising past this wraps back to the band floor. */
 const WINDOW_Z_MAX = 29;
 const FLASH_MS = 1500;
-/** Must match `.aim-buddy` width in aim.css. */
-const BUDDY_WIDTH = 268;
-/** Must match `.aim-buddy` height in aim.css; used to clamp the window into view. */
-const BUDDY_HEIGHT = 420;
-/** Gap kept between the buddy list and the desktop's right edge. */
-const BUDDY_MARGIN = 14;
-const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
+
+/**
+ * Layout tokens, in px. `.aim-root` in aim.css owns these as custom properties
+ * (`--aim-buddy-w` / `--aim-buddy-h` / `--aim-buddy-margin` / `--aim-taskbar-h`)
+ * so the CSS is the single source of truth and the numbers can never drift.
+ *
+ * The fallbacks are the values the CSS ships with, so behaviour is identical if
+ * the variables are missing or we are not in a browser (SSR, tests, a build
+ * that reads this module before mount).
+ */
+export type AimLayoutToken =
+  | "--aim-buddy-w"
+  | "--aim-buddy-h"
+  | "--aim-buddy-margin"
+  | "--aim-taskbar-h";
+
+const LAYOUT_FALLBACK_PX: Record<AimLayoutToken, number> = {
+  "--aim-buddy-w": 268,
+  "--aim-buddy-h": 420,
+  "--aim-buddy-margin": 14,
+  "--aim-taskbar-h": 30,
+};
+
+/** Custom-property name -> resolved px, shared by every desktop instance. */
+let layoutTokens: LayoutTokenRecord | null = null;
+
+/**
+ * Marker key on the resolved token record recording which element the values
+ * were read from, so a remaining desktop instance re-reads after a root swap.
+ * (A symbol, so it can never collide with a custom-property name.)
+ */
+const LAYOUT_RESOLVED_FOR: unique symbol = Symbol("aim-layout-resolved-for");
+type LayoutTokenRecord = Record<AimLayoutToken, number> & {
+  [LAYOUT_RESOLVED_FOR]?: HTMLElement | null;
+};
+
+/**
+ * Resolve the layout tokens from the desktop root's computed style. Called
+ * lazily, once per resolved root, never per render or per drag frame. An absent
+ * DOM/`getComputedStyle`, or an empty/non-numeric value, keeps the ship literal.
+ */
+function readLayoutTokens(root: HTMLElement | null): LayoutTokenRecord {
+  const resolved: LayoutTokenRecord = { ...LAYOUT_FALLBACK_PX };
+  if (root === null || typeof getComputedStyle !== "function") return resolved;
+  const style = getComputedStyle(root);
+  for (const name of Object.keys(LAYOUT_FALLBACK_PX) as AimLayoutToken[]) {
+    const parsed = parseFloat(style.getPropertyValue(name));
+    if (Number.isFinite(parsed)) resolved[name] = parsed;
+  }
+  return resolved;
+}
+
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // match server cap
 
 /** Build a fresh IM window entry for a thread. */
@@ -122,6 +167,16 @@ export function DesktopPage() {
 
   // --- Desktop container + its live size (drives window bounds). ---
   const desktopRef = useRef<HTMLDivElement | null>(null);
+  // Layout tokens resolved from the desktop root's computed style, read once
+  // after mount. Until then (and if the vars are unavailable) the module
+  // fallbacks stand in, so the numbers are always usable.
+  const [layout, setLayout] = useState<LayoutTokenRecord>(
+    () => layoutTokens ?? readLayoutTokens(null),
+  );
+  const buddyWidth = layout["--aim-buddy-w"];
+  const buddyHeight = layout["--aim-buddy-h"];
+  const buddyMargin = layout["--aim-buddy-margin"];
+  const taskbarH = layout["--aim-taskbar-h"];
   // `null` until the desktop has ACTUALLY been measured. Starting from a
   // hardcoded default made the buddy list place itself against a fake 1200px
   // desktop on first render and then never re-place, so it landed mid-screen.
@@ -131,20 +186,32 @@ export function DesktopPage() {
   useEffect(() => {
     const node = desktopRef.current;
     if (!node) return;
+    // Read once per mounted root: reuse the module cache when it was already
+    // resolved from this same element, otherwise re-read `getComputedStyle`.
+    if (layoutTokens === null || layoutTokens[LAYOUT_RESOLVED_FOR] !== node) {
+      layoutTokens = readLayoutTokens(node);
+      layoutTokens[LAYOUT_RESOLVED_FOR] = node;
+    }
+    setLayout(layoutTokens);
+  }, []);
+
+  useEffect(() => {
+    const node = desktopRef.current;
+    if (!node) return;
     const update = () => {
       const rect = node.getBoundingClientRect();
       setSize({
         width: Math.max(320, Math.round(rect.width)),
         // Reserve the taskbar strip at the bottom so dragged/resized IM
         // windows can never slip underneath it and become unreachable.
-        height: Math.max(240, Math.round(rect.height) - TASKBAR_H),
+        height: Math.max(240, Math.round(rect.height) - taskbarH),
       });
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [taskbarH]);
 
   // --- Window + buddy state (unchanged behaviors). ---
   const [windows, setWindows] = useState<Record<string, ImWindowState>>({});
@@ -177,8 +244,8 @@ export function DesktopPage() {
   useEffect(() => {
     if (buddyPlaced.current || size === null || size.width <= 0) return;
     buddyPlaced.current = true;
-    setBuddyPos({ x: Math.max(0, size.width - BUDDY_WIDTH - BUDDY_MARGIN), y: 14 });
-  }, [size]);
+    setBuddyPos({ x: Math.max(0, size.width - buddyWidth - buddyMargin), y: buddyMargin });
+  }, [size, buddyWidth, buddyMargin]);
 
   // --- Wallpaper state ---
   const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
@@ -531,14 +598,14 @@ export function DesktopPage() {
   // initial placement is what made the window creep inwards from the edge.
   const effectiveBuddyPos = useMemo(() => {
     if (size === null) return { x: 0, y: 0 };
-    const maxX = Math.max(0, size.width - BUDDY_WIDTH - BUDDY_MARGIN);
+    const maxX = Math.max(0, size.width - buddyWidth - buddyMargin);
     const x = Math.min(Math.max(0, buddyPos.x), maxX);
     // Keep the whole window reachable vertically: clamp against its real height
     // (was a hardcoded 360, which no longer matched the box).
-    const maxY = Math.max(0, size.height - BUDDY_HEIGHT - BUDDY_MARGIN);
+    const maxY = Math.max(0, size.height - buddyHeight - buddyMargin);
     const y = Math.min(Math.max(0, buddyPos.y), maxY);
     return { x, y };
-  }, [buddyPos, size]);
+  }, [buddyPos, size, buddyWidth, buddyHeight, buddyMargin]);
 
   const hasCustom = wallpaperUrl !== null;
 

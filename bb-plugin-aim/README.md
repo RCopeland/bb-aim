@@ -11,12 +11,13 @@ windows** — all in-app elements (no new browser windows).
 ## What you get
 
 - **Buddy list** — each bb-app thread is a buddy, in bb's own parent/child tree.
-  Rows carry the same detail bb's default sidebar rows do: name, presence
-  bullet (online / away / idle / offline / needs-you), unread + pinned state,
-  running activity (agents / workflows / commands / plans / goals), branch,
-  workspace kind, machine, project, provider, fork origin, PR state and
-  last-activity time. Per-row actions pin, mark read/unread, and archive
-  through bb's own thread APIs. Draggable, collapsible, keyboard reachable.
+  Rows are deliberately minimal and AIM-style: a presence dot plus the thread
+  title. A pinned thread carries a gold star, a "needs you" badge marks a thread
+  waiting on you, and the single per-row action is archive, through bb's own
+  thread APIs. The detail the dense rows used to paint (presence state, unread,
+  running activity, branch, machine, project, provider, last-activity time) still
+  reaches assistive tech through each row's accessible name, and the real detail
+  is in the thread's IM window. Draggable, collapsible, keyboard reachable.
 - **IM windows** — clicking a buddy pops up an IM window for that thread. Each
   window wraps **bb's own `ThreadChat` component**, so it has full thread
   functionality: the real timeline (including tool calls, diffs, file rows and
@@ -102,8 +103,8 @@ offline (bb adds indicator kinds over time).
   the AIM chrome appears only on this page.
 - The desktop fills the panel body; the buddy list and IM windows position
   absolutely within it and clamp to its size while dragging. The bottom
-  `TASKBAR_H` strip is reserved out of the drag bounds so a window can never be
-  dragged under the taskbar.
+  taskbar strip (`--aim-taskbar-h`) is reserved out of the drag bounds so a
+  window can never be dragged under the taskbar.
 - **IM windows render bb's own `ThreadChat`** (`variant="compact"`,
   `layout="contained"`, `permissionPolicy="inherit"`). The plugin does not read
   or write thread transcripts itself. The previous hand-rolled path flattened
@@ -113,8 +114,8 @@ offline (bb adds indicator kinds over time).
   matters: a plugin surface must never widen a thread's permission mode.
 - The buddy list is a **parallel view, not a sidebar replacement**. bb's default
   sidebar list is left registered and untouched; `experimental_threadList` is
-  deliberately NOT used. Rows reach information parity by reading the same host
-  hooks bb's own rows read (`experimental_useSidebarThreads`,
+  deliberately NOT used. Rows read the same host hooks bb's own rows read
+  (`experimental_useSidebarThreads`,
   `experimental_useProviders`, `experimental_useSidebarThreadPullRequest`,
   `experimental_useSidebarThreadSplit`), and act through
   `experimental_useSidebarThreadActions` (pin / read / rename / archive /

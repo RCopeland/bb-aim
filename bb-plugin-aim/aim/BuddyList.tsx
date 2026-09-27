@@ -139,6 +139,9 @@ function BuddyRow({
   const labelParts = [name, thread.indicatorLabel ?? presenceLabel(thread)];
   if (thread.isUnread) labelParts.push("unread");
   if (thread.isPinned) labelParts.push("pinned");
+  if (split.layout?.panes.some((pane) => pane.isMe)) {
+    labelParts.push("in a split pane");
+  }
   if (activity) labelParts.push(activity);
   if (branch) labelParts.push(`branch ${branch}`);
   if (host) labelParts.push(`on ${host}`);
