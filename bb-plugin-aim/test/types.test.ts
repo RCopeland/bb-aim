@@ -10,7 +10,6 @@ import {
   presenceText,
   relativeTime,
   threadPresence,
-  workspaceBadge,
   workingCount,
 } from "../aim/types.js";
 import { makeThread, withActivity } from "./helpers/thread.js";
@@ -268,25 +267,5 @@ describe("relativeTime", () => {
   it("defaults `now` to the current clock", () => {
     // A timestamp an hour in the past is "1h ago" no matter when this runs.
     expect(relativeTime(Date.now() - 3_600_000)).toBe("1h ago");
-  });
-});
-
-describe("workspaceBadge", () => {
-  // A managed worktree is bb's; an unmanaged one is the user's. That
-  // distinction is the whole point of the badge, so both are asserted.
-  it("labels a managed worktree", () => {
-    expect(workspaceBadge("managed-worktree")).toBe("worktree");
-  });
-
-  it("labels an unmanaged worktree as the user's", () => {
-    expect(workspaceBadge("unmanaged-worktree")).toBe("your worktree");
-  });
-
-  it("shows no badge for a plain checkout", () => {
-    expect(workspaceBadge("other")).toBeNull();
-  });
-
-  it("shows no badge when the kind is unknown", () => {
-    expect(workspaceBadge(undefined)).toBeNull();
   });
 });

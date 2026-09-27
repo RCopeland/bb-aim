@@ -122,16 +122,3 @@ export function activitySummary(thread: PluginSidebarThread): string | null {
   if (a.goals > 0) parts.push(`${a.goals} goal${a.goals === 1 ? "" : "s"}`);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
-
-/**
- * Workspace kind -> the short badge shown on a row. `managed-worktree` means
- * bb owns the checkout the thread runs in, `unmanaged-worktree` means the user
- * does; a plain checkout has no badge of its own (the branch chip covers it).
- */
-export function workspaceBadge(
-  kind: "managed-worktree" | "other" | "unmanaged-worktree" | undefined,
-): string | null {
-  if (kind === "managed-worktree") return "worktree";
-  if (kind === "unmanaged-worktree") return "your worktree";
-  return null;
-}
