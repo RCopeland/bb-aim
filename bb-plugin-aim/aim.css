@@ -17,6 +17,17 @@
   --aim-muted: #5c6b7d;
   --aim-line: #9cb8dd;
   --aim-line-soft: #c9dcf2;
+  /* Horizontal indent applied per nesting level in the buddy list. Read by
+     `.aim-buddy-li`; `--aim-depth` (set per row in BuddyList.tsx) multiplies
+     it. 16px reads as real nesting at the pixel font's size; the old 12px
+     step was subtle enough that sub-threads looked like top-level rows. */
+  --aim-indent-step: 16px;
+  /* Width of the buddy list's disclosure-caret column. One token drives the
+     caret button, the inert gutter on childless rows, and the caret glyph, so
+     the three cannot drift apart and leave titles misaligned. Kept tight — the
+     triangle is only 6px wide and the old 15px column pushed titles far enough
+     right to waste noticeable horizontal space in a 268px window. */
+  --aim-caret-w: 11px;
   /* Sizing/placement tokens. These are the single source of truth: the buddy
      list's default width and height, the right-edge gap it is placed against,
      and the taskbar strip reserved out of the drag bounds. `aim/DesktopPage.tsx`
@@ -264,7 +275,14 @@
    The detail/sub/branch/tag/PR lines that used to live here were removed —
    see the file header of BuddyList.tsx. What remains is a row, the pin mark,
    the "needs you" badge, and the one archive action. */
-.aim-xp .aim-buddy-li { list-style: none; }
+.aim-xp .aim-buddy-li {
+  list-style: none;
+  /* Every row is indented by its nesting depth. `--aim-depth` is set per row in
+     BuddyList.tsx (0 for a top-level thread); the step lives here so the value
+     is tunable in one place. A wide step makes real sub-threads unmistakable,
+     which is the whole point of the indent. */
+  padding-left: calc(var(--aim-depth, 0) * var(--aim-indent-step));
+}
 .aim-xp .aim-buddy-rowwrap {
   display: flex;
   align-items: stretch;
@@ -278,7 +296,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 15px;
+  width: var(--aim-caret-w);
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -290,6 +308,15 @@
 }
 .aim-xp .aim-buddy-caret-btn:hover,
 .aim-xp .aim-buddy-caret-btn:focus-visible { background: #cfe1f5; }
+/* Inert spacer reserving the caret column on a childless row. Same width token
+   as `.aim-buddy-caret-btn` so titles line up across every row regardless of
+   whether that row can expand. */
+.aim-xp .aim-buddy-caret-gutter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: var(--aim-caret-w);
+  min-width: 0;
+}
 .aim-xp .aim-buddy-rowwrap:hover .aim-buddy-row { background: transparent; }
 .aim-xp .aim-buddy-main {
   display: flex;
@@ -402,17 +429,25 @@
 /* Recursive buddy-tree disclosure caret (parent rows only).
    A right-pointing triangle when collapsed, down when expanded — drawn with a
    CSS border triangle so there is no glyph/font dependency and it scales
-   crisply. The caret span is `aria-hidden`; the parent row button carries the
-   real state via `aria-expanded` + `aria-controls`. Scoped under .aim-xp. */
+   crisply. The caret span is `aria-hidden`; the caret BUTTON carries the state
+   via its own `aria-expanded`, which is what the selectors below key off.
+   Scoped under .aim-xp. */
 .aim-xp .aim-buddy-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
+  width: var(--aim-caret-w);
   height: 13px;
   flex-shrink: 0;
 }
-.aim-xp .aim-buddy-row.aim-buddy-parent .aim-buddy-caret::after {
+/* The caret's triangle. These selectors are anchored on `.aim-buddy-caret-btn`
+   — the button that actually CONTAINS `.aim-buddy-caret` — not on
+   `.aim-buddy-row`. The caret button is a sibling of the row button, so the
+   previous `.aim-buddy-row.aim-buddy-parent .aim-buddy-caret` selector could
+   never match and the triangle never painted, which is why the expand/collapse
+   affordance looked missing. State comes from the caret button's own
+   `aria-expanded`, which is the element that carries it. */
+.aim-xp .aim-buddy-caret-btn .aim-buddy-caret::after {
   content: "";
   display: block;
   width: 0;
@@ -421,18 +456,17 @@
   border-bottom: 3px solid transparent;
   border-left: 6px solid var(--aim-muted);
 }
-.aim-xp .aim-buddy-row.aim-buddy-parent[aria-expanded="true"] .aim-buddy-caret::after {
+.aim-xp .aim-buddy-caret-btn[aria-expanded="true"] .aim-buddy-caret::after {
   border: 0;
   border-left: 3px solid transparent;
   border-right: 3px solid transparent;
   border-top: 6px solid var(--aim-muted);
 }
-/* Children nest inside the parent <li>; XP.css's `.aim-xp ul.tree-view ul`
-   already supplies the dotted-left + 16px indent + connector elbows, so the
-   nested `.aim-buddy-children` <ul> needs no extra chrome here. */
-.aim-xp .aim-buddy-children {
-  margin-top: 0;
-}
+/* Children are rendered as FLAT siblings inside the single listbox <ul>, not as
+   a nested `.aim-buddy-children` <ul>: `renderThread` recurses with `depth + 1`
+   and the row's own `padding-left` (see `.aim-buddy-li`) carries the nesting.
+   The nested-list rule that used to live here was dead CSS describing a
+   structure the component does not produce, so it is gone. */
 .aim-xp .aim-buddy-empty {
   padding: 14px 10px;
   text-align: center;
