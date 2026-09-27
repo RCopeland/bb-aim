@@ -95,7 +95,11 @@
 .aim-xp .aim-buddy {
   display: flex;
   flex-direction: column;
-  width: 216px;
+  width: 268px;
+  /* A definite height, so the body/list can flex-fill it. The list scrolls
+     internally once the rows exceed this. */
+  height: 420px;
+  max-height: calc(100% - 28px);
   overflow: hidden;
 }
 
@@ -134,10 +138,12 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-.aim-xp .aim-buddy .window-body {
+.aim-xp .aim-buddy-body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* Let the list below fill whatever height the window has. */
+  flex: 1 1 auto;
 }
 
 /* ----- Presence bullets ----- */
@@ -162,7 +168,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid #d0cdbc;
   background: #fffbe4;
   font-size: 11px;
@@ -204,20 +210,23 @@
 }
 .aim-xp .aim-buddy-list {
   overflow-y: auto;
-  max-height: 40vh;
+  /* Fill the window's fixed height instead of capping at 40vh, which is what
+     made the list feel cramped and scroll far too early on a tall desktop. */
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
-  padding: 2px;
+  padding: 6px;
 }
 /* Buddy rows are <button>s inside tree-view <li>s; neutralize XP's 3D button
    chrome (XP buttons are min-width:75px beveled) so each row is a list item. */
 .aim-xp .aim-buddy-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: 100%;
   min-width: 0;
   min-height: auto;
-  padding: 5px 6px;
+  padding: 6px 8px;
   border: none;
   border-radius: 2px;
   background: transparent;
@@ -229,7 +238,12 @@
 }
 .aim-xp .aim-buddy-row:hover { background: #dbe9f8; }
 .aim-xp .aim-buddy-row:active { box-shadow: none; }
-.aim-xp .aim-buddy-row.aim-select { background: #cfe1f5; outline: 1px solid var(--aim-line); }
+/* A thread that is currently open in an IM window is shown in BOLD, not with
+   a gold fill. The fill was applied through `aim-select`, which is true for
+   every open window — on a busy desktop that is most rows, so the list looked
+   like it was permanently highlighted. Bold is a quiet, persistent "this one
+   is open" cue that does not fight the row's other states. */
+.aim-xp .aim-buddy-row.aim-select .aim-buddy-name { font-weight: 700; }
 .aim-xp .aim-buddy-name {
   min-width: 0;
   overflow: hidden;
@@ -238,10 +252,10 @@
   color: #093040;
 }
 
-/* ----- Row detail: parity with bb's default sidebar row -----
-   Rows are two-to-three lines now (name / detail / sub) so the buddy list
-   carries the branch, host, project, provider, running activity, fork origin,
-   PR state and last-activity time that bb's own list shows. */
+/* Buddy list rows are intentionally SPARSE: a presence dot and the title.
+   The detail/sub/branch/tag/PR lines that used to live here were removed —
+   see the file header of BuddyList.tsx. What remains is a row, the pin mark,
+   the "needs you" badge, and the one archive action. */
 .aim-xp .aim-buddy-li { list-style: none; }
 .aim-xp .aim-buddy-rowwrap {
   display: flex;
@@ -280,66 +294,15 @@
   font-weight: 700;
   color: #05202c;
 }
-.aim-xp .aim-buddy-detail,
-.aim-xp .aim-buddy-sub {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 10px;
-  line-height: 1.3;
-  color: #55606e;
-  white-space: nowrap;
-}
-.aim-xp .aim-buddy-detail > *,
-.aim-xp .aim-buddy-sub > * {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.aim-xp .aim-buddy-branch {
-  font-family: "Cascadia Mono", Consolas, monospace;
-  color: #1d5a9e;
-  max-width: 120px;
-}
-.aim-xp .aim-buddy-tag {
-  padding: 0 4px;
-  border: 1px solid #b9c1cc;
-  border-radius: 2px;
-  background: #eef2f7;
-  color: #4a5666;
+/* Pinned marker: a small gold star drawn with clip-path so it renders the same
+   in every font/zoom (the old "★" text glyph did not). */
+.aim-xp .aim-buddy-pin {
   flex: 0 0 auto;
-}
-.aim-xp .aim-buddy-tag.aim-buddy-busy {
-  border-color: #c9a227;
-  background: #fdf3cf;
-  color: #6b5310;
-}
-.aim-xp .aim-buddy-flag { color: #c9a227; flex: 0 0 auto; }
-.aim-xp .aim-buddy-project { color: #55606e; }
-.aim-xp .aim-buddy-host { color: #7a8796; }
-.aim-xp .aim-buddy-time { margin-left: auto; color: #7a8796; flex: 0 0 auto; }
-/* PR chip: quiet unless the PR actually wants the user. */
-.aim-xp .aim-buddy-pr {
-  align-self: flex-start;
-  margin-top: 1px;
-  padding: 0 4px;
-  border: 1px solid #b9c1cc;
-  border-radius: 2px;
-  background: #eef2f7;
-  color: #4a5666;
-  font-size: 10px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.aim-xp .aim-buddy-pr.aim-buddy-pr-attention {
-  border-color: #c9a227;
-  background: #fdf3cf;
-  color: #6b5310;
-  font-weight: 700;
+  align-self: center;
+  width: 11px;
+  height: 11px;
+  background: #c9a227;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
 /* The "needs you" marker and split indicator at the row's trailing edge. */
 .aim-xp .aim-buddy-needs {
@@ -361,30 +324,31 @@
   color: #1d5a9e;
   font-size: 11px;
 }
-/* Per-row actions: revealed on hover/focus so the row stays quiet at rest. */
-.aim-xp .aim-buddy-actions {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex: 0 0 auto;
-  opacity: 0;
-}
-.aim-xp .aim-buddy-rowwrap:hover .aim-buddy-actions,
-.aim-xp .aim-buddy-rowwrap:focus-within .aim-buddy-actions {
-  opacity: 1;
-}
+
+/* Per-row action: archive only, and always visible. It used to be a
+   hover-revealed trio (pin / read / archive) rendered as text glyphs, which
+   looked broken because you could not see it and could not tell what it did. */
 .aim-xp .aim-buddy-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   min-height: 0;
   width: 18px;
   height: 18px;
   padding: 0;
+  /* The wrapper is `align-items: stretch`, and this button's fixed height
+     means it would otherwise sit flush at the row's TOP while the title is
+     centred inside the row button. Centre it on the same axis as the title. */
+  align-self: center;
+  /* Match the row's own vertical padding so the icon's optical centre lines up
+     with the text's, not just the box centre. */
+  margin: 0;
   border: none;
   border-radius: 2px;
   background: transparent;
   box-shadow: none;
   color: #4a5666;
-  font-size: 11px;
   line-height: 1;
   cursor: pointer;
 }
@@ -393,7 +357,35 @@
   background: #cfe1f5;
   color: #093040;
 }
-/* Keep actions reachable for keyboard users even without hover. */
+/* Archive icon: a lid + box + slot, built from CSS borders so it is crisp at
+   any zoom and matches the pixel UI (the old "▤" glyph was unreadable and
+   meaningless). Inherits its colour from the button so hover/focus works.
+
+   Geometry note: every painted part lives INSIDE this 13x13 box. An earlier
+   version drew the lid above the box (`top:-3px`), which made the painted
+   glyph taller than its layout box and left it sitting high relative to the
+   row's text. Keeping the paint inside the box means ordinary flex centring
+   centres the visible icon. */
+.aim-xp .aim-ico-archive {
+  position: relative;
+  display: block;
+  width: 11px;
+  height: 13px;
+  border: 1px solid currentColor;
+  border-top-width: 3px;
+  border-radius: 1px;
+}
+/* The slot: a short line near the top of the box body. */
+.aim-xp .aim-ico-archive::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  height: 1px;
+  background: currentColor;
+}
+/* Keep the action reachable for keyboard users (focus gets a visible ring). */
 .aim-xp .aim-buddy-act:focus-visible {
   opacity: 1;
   outline: 1px dotted #000;
@@ -886,11 +878,9 @@
   color: #173d3a;
 }
 
-/* Buddy presence gold: keep the ISO warning-yellow as the signature AIM tone. */
-.aim-xp .aim-buddy-row.aim-select {
-  background: #f7e9b4;
-  outline-color: #c8a22b;
-}
+/* Buddy presence gold: pinned marker keeps the AIM gold tone. The open-thread
+   gold fill is gone — open threads are bold now (see .aim-buddy-row.aim-select
+   above), so nothing here paints a yellow box around a row. */
 .aim-xp .aim-buddy-row:hover { background: #e3e2c7; }
 
 /* Status bar: AIM-teal field tint. */

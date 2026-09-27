@@ -57,7 +57,12 @@ const OVERLAY_BASE_Z = 11;
 /** Last usable window z. Raising past this wraps back to the band floor. */
 const WINDOW_Z_MAX = 29;
 const FLASH_MS = 1500;
-const BUDDY_WIDTH = 216;
+/** Must match `.aim-buddy` width in aim.css. */
+const BUDDY_WIDTH = 268;
+/** Must match `.aim-buddy` height in aim.css; used to clamp the window into view. */
+const BUDDY_HEIGHT = 420;
+/** Gap kept between the buddy list and the desktop's right edge. */
+const BUDDY_MARGIN = 14;
 const TASKBAR_H = 30; // keep in sync with .aim-taskbar height in aim.css
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // match server cap
 
@@ -117,9 +122,12 @@ export function DesktopPage() {
 
   // --- Desktop container + its live size (drives window bounds). ---
   const desktopRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState({ width: 1200, height: 720 });
-  const boundsRef: DragBoundsRef = useRef(size);
-  boundsRef.current = size;
+  // `null` until the desktop has ACTUALLY been measured. Starting from a
+  // hardcoded default made the buddy list place itself against a fake 1200px
+  // desktop on first render and then never re-place, so it landed mid-screen.
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const boundsRef: DragBoundsRef = useRef({ width: 1200, height: 720 });
+  if (size !== null) boundsRef.current = size;
   useEffect(() => {
     const node = desktopRef.current;
     if (!node) return;
@@ -162,13 +170,15 @@ export function DesktopPage() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   ).current;
 
-  // Place the buddy list top-right the first time we know the real desktop
-  // size; afterward the user's drag position wins.
+  // Place the buddy list top-right the FIRST time a real measurement exists;
+  // afterward the user's drag position wins. The `size === null` guard is the
+  // fix for "it starts in the middle": this used to run against the placeholder
+  // desktop size and place itself at a bogus x, then latch via `buddyPlaced`.
   useEffect(() => {
-    if (buddyPlaced.current || size.width <= 0) return;
+    if (buddyPlaced.current || size === null || size.width <= 0) return;
     buddyPlaced.current = true;
-    setBuddyPos({ x: Math.max(0, size.width - BUDDY_WIDTH - 14), y: 14 });
-  }, [size.width]);
+    setBuddyPos({ x: Math.max(0, size.width - BUDDY_WIDTH - BUDDY_MARGIN), y: 14 });
+  }, [size]);
 
   // --- Wallpaper state ---
   const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
@@ -297,6 +307,9 @@ export function DesktopPage() {
   // Clamp after the menu has rendered so we know its real width/height.
   useLayoutEffect(() => {
     if (!menu) return;
+    // No real desktop measurement yet: leave the menu where the click put it
+    // rather than clamping it against a placeholder size.
+    if (size === null) return;
     const node = menuRef.current;
     const width = node?.offsetWidth ?? 200;
     const height = node?.offsetHeight ?? 96;
@@ -386,7 +399,7 @@ export function DesktopPage() {
             24 + (count % 5) * 28,
             24 + (count % 5) * 28,
             nextZ(),
-            size,
+            size ?? undefined,
           ),
         };
       });
@@ -468,7 +481,7 @@ export function DesktopPage() {
         next[threadId] = existing
           ? { ...existing, visible: true, flash: !reducedMotion, z: nextZ() }
           : {
-              ...newWindow(threadId, base.x, base.y, nextZ(), size),
+              ...newWindow(threadId, base.x, base.y, nextZ(), size ?? undefined),
               flash: !reducedMotion,
             };
       }
@@ -513,9 +526,17 @@ export function DesktopPage() {
     return best?.id ?? null;
   }, [windows]);
 
+  // Clamp into the desktop, but never pull the list further from the right
+  // edge than its own placement margin: clamping to a SMALLER margin than the
+  // initial placement is what made the window creep inwards from the edge.
   const effectiveBuddyPos = useMemo(() => {
-    const x = Math.min(Math.max(0, buddyPos.x), Math.max(0, size.width - BUDDY_WIDTH - 12));
-    const y = Math.min(Math.max(0, buddyPos.y), Math.max(0, size.height - 360));
+    if (size === null) return { x: 0, y: 0 };
+    const maxX = Math.max(0, size.width - BUDDY_WIDTH - BUDDY_MARGIN);
+    const x = Math.min(Math.max(0, buddyPos.x), maxX);
+    // Keep the whole window reachable vertically: clamp against its real height
+    // (was a hardcoded 360, which no longer matched the box).
+    const maxY = Math.max(0, size.height - BUDDY_HEIGHT - BUDDY_MARGIN);
+    const y = Math.min(Math.max(0, buddyPos.y), maxY);
     return { x, y };
   }, [buddyPos, size]);
 

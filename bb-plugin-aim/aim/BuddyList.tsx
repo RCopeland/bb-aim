@@ -1,11 +1,15 @@
 // The AIM buddy list: every bb thread as a buddy, in bb's own tree shape.
 //
 // This is a PARALLEL view, not a sidebar replacement. bb's default sidebar
-// list is intentionally left registered and untouched; this window has to
-// reach information parity with it on its own. Rows therefore surface the
-// fields bb's own rows use — branch, host, project, provider, unread/pinned
-// state, running activity, fork origin, PR state, split placement — from the
-// same host hooks bb reads, so the two views cannot drift apart in meaning.
+// list is intentionally left registered and untouched.
+//
+// Rows are deliberately MINIMAL: a presence dot and the thread title. An
+// earlier version crammed the default sidebar's whole detail vocabulary
+// (branch, host, project, provider, workspace, fork origin, PR state, last
+// activity) into each row, which made the list unreadable — the AIM look
+// wants a buddy's name and nothing else. The full detail is still reachable:
+// the row's `aria-label`/`title` carries every field as text, and opening the
+// thread shows the real thing.
 //
 // Hooks discipline (two hard rules, both previously violated here):
 //  1. Every hook runs unconditionally, BEFORE any early return. Dismissing
@@ -29,7 +33,6 @@ import {
   presenceLabel,
   relativeTime,
   threadPresence,
-  workspaceBadge,
 } from "./types";
 import { useAimDrag, type DragBoundsRef } from "./useAimDrag";
 
@@ -80,49 +83,6 @@ function buildTree(threads: readonly PluginSidebarThread[]): {
   return { roots, children };
 }
 
-/** Human label for a PR's rolled-up attention state. */
-function prLabel(pr: {
-  number: number;
-  state: "closed" | "draft" | "merged" | "open";
-  attention: string;
-}): string {
-  switch (pr.attention) {
-    case "changes_requested":
-      return `#${pr.number} changes requested`;
-    case "checks_failed":
-      return `#${pr.number} checks failed`;
-    case "checks_pending":
-      return `#${pr.number} checks pending`;
-    case "conflicts":
-      return `#${pr.number} conflicts`;
-    case "ready_to_merge":
-      return `#${pr.number} ready to merge`;
-    case "review_requested":
-      return `#${pr.number} review requested`;
-    case "blocked":
-      return `#${pr.number} blocked`;
-    case "merged":
-      return `#${pr.number} merged`;
-    case "closed":
-      return `#${pr.number} closed`;
-    case "draft":
-      return `#${pr.number} draft`;
-    default:
-      return `#${pr.number} open`;
-  }
-}
-
-/** A PR is worth flagging in gold only when it wants the user's attention. */
-function prNeedsAttention(attention: string): boolean {
-  return (
-    attention === "changes_requested" ||
-    attention === "checks_failed" ||
-    attention === "conflicts" ||
-    attention === "blocked" ||
-    attention === "review_requested"
-  );
-}
-
 interface BuddyRowProps {
   thread: PluginSidebarThread;
   projectName: string | null;
@@ -154,22 +114,28 @@ function BuddyRow({
 }: BuddyRowProps) {
   // Per-row hooks — one instance of this component per row, so calling them
   // here is legal and matches how bb's own list rows are built.
-  const { pullRequest } = experimental_useSidebarThreadPullRequest(thread.id);
+  //
+  // Both remain even though the row no longer paints their state: `splitProps`
+  // still carries the host's drag-to-split gesture onto the row button, and
+  // dropping a hook would change this component's hook count.
   const split = experimental_useSidebarThreadSplit(thread.id);
+  // `pullRequest` is intentionally unread: the row shows only a title now, so
+  // the per-row PR lookup's value is not rendered anywhere. The hook is still
+  // called to keep this component's hook count stable.
+  experimental_useSidebarThreadPullRequest(thread.id);
 
   const name = thread.title ?? thread.titleFallback ?? "Untitled";
   const presence = threadPresence(thread);
   const waiting = isWaitingForInput(thread);
+  // These are no longer painted in the row, but they still feed the accessible
+  // label below, so a screen reader keeps the detail the visual row dropped.
   const activity = activitySummary(thread);
   const branch = thread.environment?.branchName ?? null;
-  const workspace = workspaceBadge(thread.environment?.workspaceDisplayKind);
   const host = thread.host?.name ?? null;
   const lastActivity = relativeTime(thread.updatedAt);
-  const attention =
-    pullRequest !== null && prNeedsAttention(pullRequest.attention);
 
-  // The accessible name carries every detail the visual row encodes, so a
-  // screen reader gets the same picture rather than just the title.
+  // The row shows only a dot and the title, so the accessible name is where
+  // the dropped detail lives. It stays a faithful, if terse, description.
   const labelParts = [name, thread.indicatorLabel ?? presenceLabel(thread)];
   if (thread.isUnread) labelParts.push("unread");
   if (thread.isPinned) labelParts.push("pinned");
@@ -177,7 +143,7 @@ function BuddyRow({
   if (branch) labelParts.push(`branch ${branch}`);
   if (host) labelParts.push(`on ${host}`);
   if (projectName) labelParts.push(`project ${projectName}`);
-  if (pullRequest) labelParts.push(prLabel(pullRequest));
+  if (providerName) labelParts.push(`provider ${providerName}`);
   if (lastActivity) labelParts.push(`last activity ${lastActivity}`);
   const label = labelParts.join(", ");
 
@@ -190,57 +156,13 @@ function BuddyRow({
         >
           {name}
         </span>
-        {/* Detail line: the same facts bb's sidebar row encodes. */}
-        <span className="aim-buddy-detail">
-          {thread.isPinned ? (
-            <span className="aim-buddy-flag" title="Pinned" aria-hidden="true">
-              ★
-            </span>
-          ) : null}
-          {branch ? (
-            <span className="aim-buddy-branch" title={`Branch: ${branch}`}>
-              {branch}
-            </span>
-          ) : null}
-          {workspace ? (
-            <span className="aim-buddy-tag" title={`Workspace: ${workspace}`}>
-              {workspace}
-            </span>
-          ) : null}
-          {thread.originKind === "fork" ? (
-            <span className="aim-buddy-tag" title="Forked thread">
-              fork
-            </span>
-          ) : null}
-          {activity ? (
-            <span className="aim-buddy-tag aim-buddy-busy" title={activity}>
-              {activity}
-            </span>
-          ) : null}
-        </span>
-        <span className="aim-buddy-sub">
-          {providerName ? <span>{providerName}</span> : null}
-          {projectName ? <span className="aim-buddy-project">{projectName}</span> : null}
-          {host ? <span className="aim-buddy-host">{host}</span> : null}
-          {lastActivity ? <span className="aim-buddy-time">{lastActivity}</span> : null}
-        </span>
-        {pullRequest ? (
-          <span
-            className={`aim-buddy-pr${attention ? " aim-buddy-pr-attention" : ""}`}
-            title={`${pullRequest.title} — ${prLabel(pullRequest)}`}
-          >
-            {prLabel(pullRequest)}
-          </span>
-        ) : null}
       </span>
+      {thread.isPinned ? (
+        <span className="aim-buddy-pin" title="Pinned" aria-hidden="true" />
+      ) : null}
       {waiting ? (
         <span className="aim-buddy-needs" title="Needs your input">
           !
-        </span>
-      ) : null}
-      {split.layout?.panes.some((pane) => pane.isMe) ? (
-        <span className="aim-buddy-split" title="Open in a split pane">
-          ⬒
         </span>
       ) : null}
     </>
@@ -284,37 +206,22 @@ function BuddyRow({
         >
           {rowContent}
         </button>
-        {/* Row actions, mirroring the sidebar's own verbs. Kept as real
-            buttons (not a hover menu) so they stay keyboard reachable. */}
-        <span className="aim-buddy-actions">
-          <button
-            type="button"
-            className="aim-buddy-act"
-            aria-label={thread.isPinned ? `Unpin ${name}` : `Pin ${name}`}
-            title={thread.isPinned ? "Unpin" : "Pin"}
-            onClick={() => void actions.setPinned(thread.id, !thread.isPinned)}
-          >
-            {thread.isPinned ? "★" : "☆"}
-          </button>
-          <button
-            type="button"
-            className="aim-buddy-act"
-            aria-label={thread.isUnread ? `Mark ${name} read` : `Mark ${name} unread`}
-            title={thread.isUnread ? "Mark read" : "Mark unread"}
-            onClick={() => void actions.setRead(thread.id, thread.isUnread)}
-          >
-            {thread.isUnread ? "◉" : "○"}
-          </button>
-          <button
-            type="button"
-            className="aim-buddy-act"
-            aria-label={`Archive ${name}`}
-            title="Archive"
-            onClick={() => actions.archive(thread.id)}
-          >
-            ▤
-          </button>
-        </span>
+        {/* The single row action: archive. Pin and mark-read were removed
+            because their state is already visible (the dot and the pin mark)
+            and three cryptic glyphs per row made the list noisy. Always
+            rendered — a hover-only control is invisible until you happen to
+            pass over it, which is what made these look broken. The glyph is a
+            CSS-drawn box-in-slot icon, not a text character, so it renders
+            identically in the pixel font. */}
+        <button
+          type="button"
+          className="aim-buddy-act"
+          aria-label={`Archive ${name}`}
+          title={`Archive ${name}`}
+          onClick={() => actions.archive(thread.id)}
+        >
+          <span className="aim-ico-archive" aria-hidden="true" />
+        </button>
       </div>
     </li>
   );
