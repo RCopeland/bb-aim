@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref — a new push makes the old run's
+# answer irrelevant, and this repo's checks are cheap enough to restart.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# bb-app version used to run `bb plugin build`. Pinned deliberately: the build
+# is a plugin-contract check, and an unpinned toolchain would turn this job red
+# for reasons unrelated to the diff. Bump it when the plugin's `engines` move.
+env:
+  BB_VERSION: "0.44.0"
+
+jobs:
+  check:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: bb-plugin-aim/package-lock.json
+
+      - name: Install dependencies
+        working-directory: bb-plugin-aim
+        run: npm ci
+
+      # Two configs on purpose: the plugin tsconfig covers the shipped
+      # sources, and tsconfig.test.json adds `test/` so a type error in the
+      # tests cannot slip through green.
+      - name: Typecheck
+        working-directory: bb-plugin-aim
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: bb-plugin-aim
+        run: npm test
+
+  installable:
+    name: Builds from a managed git install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # bb's managed git install runs `npm install --omit=dev --omit=optional
+      # --ignore-scripts` and then `bb plugin build`, which inlines every
+      # import except @get-bb/plugin-sdk, better-sqlite3 and node builtins.
+      # A runtime import parked in devDependencies therefore builds fine in a
+      # full clone and fails for every real user. This job reproduces that
+      # exact sequence so the asymmetry cannot come back silently.
+      - name: Install runtime dependencies only (as bb's managed install does)
+        working-directory: bb-plugin-aim
+        run: npm install --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund
+
+      - name: Build the plugin bundles
+        working-directory: bb-plugin-aim
+        run: npx --yes --package "bb-app@${BB_VERSION}" bb plugin build .
+
+      - name: Assert the install artifacts exist
+        working-directory: bb-plugin-aim
+        run: |
+          for artifact in \
+            dist/server.js dist/server.meta.json \
+            dist/app.js dist/app.css dist/app.meta.json; do
+            if [ ! -s "$artifact" ]; then
+              echo "::error::$artifact was not produced — the plugin is not installable from git:"
+              exit 1
+            fi
+            echo "ok  $artifact"
+          done

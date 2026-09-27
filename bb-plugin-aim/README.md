@@ -1,5 +1,8 @@
 # bb-plugin-aim
 
+[![CI](https://github.com/RCopeland/bb-aim/actions/workflows/ci.yml/badge.svg)](https://github.com/RCopeland/bb-aim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
+
 An AOL Instant Messenger-style desktop for bb-app, reached from its own **AIM**
 sidebar entry. It renders a classic-Windows desktop inside the app window that
 hosts a **buddy list** of your threads and draggable **instant-message
